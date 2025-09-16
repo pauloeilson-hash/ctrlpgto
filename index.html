@@ -164,6 +164,136 @@ let GoogleAuth, currentUser, fileId = null;
 let pagamentosDataCache = null;
 let gdriveLoading = false;
 
+// Helper
+const el = id => document.getElementById(id);
+const gdriveSyncStatus = el('gdrive-sync-status');
+
+// Inicializa Google API
+function initGoogleAPI() {
+  gapi.load('client:auth2', () => {
+    gapi.client.init({
+      apiKey: API_KEY,
+      clientId: CLIENT_ID,
+      discoveryDocs: DISCOVERY_DOCS,
+      scope: SCOPES
+    }).then(() => {
+      GoogleAuth = gapi.auth2.getAuthInstance();
+      GoogleAuth.isSignedIn.listen(updateSigninStatus);
+      updateSigninStatus(GoogleAuth.isSignedIn.get());
+      el('btn-google-login').onclick = () => GoogleAuth.signIn();
+      el('btn-google-logout').onclick = () => GoogleAuth.signOut();
+    }).catch(err => {
+      console.error("Erro ao inicializar Google API:", err);
+    });
+  });
+}
+function updateSigninStatus(isSignedIn) {
+  if (isSignedIn) {
+    currentUser = GoogleAuth.currentUser.get();
+    el('btn-google-login').style.display = 'none';
+    el('btn-google-logout').style.display = '';
+    el('google-user').textContent = "Olá, " + currentUser.getBasicProfile().getName();
+    carregarDadosDrive();
+  } else {
+    el('btn-google-login').style.display = '';
+    el('btn-google-logout').style.display = 'none';
+    el('google-user').textContent = '';
+    pagamentosDataCache = null;
+    fileId = null;
+    gdriveSyncStatus.textContent = '';
+    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+  }
+}
+function setGDriveStatus(msg, ok = true) {
+  gdriveSyncStatus.textContent = msg;
+  gdriveSyncStatus.style.color = ok ? '#1f6feb' : '#d32f2f';
+}
+function carregarDadosDrive() {
+  gdriveLoading = true;
+  setGDriveStatus("Carregando dados do Google Drive...", true);
+  gapi.client.drive.files.list({
+    spaces: 'appDataFolder',
+    q: "name = 'pagamentos_data.json' and trashed = false",
+    fields: "files(id, name)"
+  }).then(function (response) {
+    if (response.result.files && response.result.files.length) {
+      fileId = response.result.files[0].id;
+      gapi.client.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      }).then(res => {
+        try {
+          pagamentosDataCache = JSON.parse(res.body);
+          setGDriveStatus('Sincronizado com Google Drive!', true);
+        } catch (e) {
+          console.error("Erro ao interpretar JSON do Drive:", e);
+          pagamentosDataCache = [];
+          setGDriveStatus('Arquivo corrompido. Começando do zero!', false);
+        }
+        gdriveLoading = false;
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      }, err => {
+        console.error("Erro ao baixar arquivo do Drive:", err);
+        pagamentosDataCache = [];
+        gdriveLoading = false;
+        setGDriveStatus('Falha ao carregar dados do Drive.', false);
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      });
+    } else {
+      salvarDadosDrive([]);
+      gdriveLoading = false;
+    }
+  }, err => {
+    console.error("Erro ao acessar lista de arquivos do Drive:", err);
+    pagamentosDataCache = [];
+    gdriveLoading = false;
+    setGDriveStatus('Erro ao acessar o Google Drive.', false);
+    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+  });
+}
+function salvarDadosDrive(dados) {
+  pagamentosDataCache = [...dados];
+  setGDriveStatus("Salvando no Google Drive...", true);
+  const blob = new Blob([JSON.stringify(dados)], { type: 'application/json' });
+  const metadata = { name: 'pagamentos_data.json', parents: ['appDataFolder'] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const token = gapi.auth.getToken().access_token;
+  let url, method;
+  if (fileId) {
+    url = 'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=multipart';
+    method = 'PATCH';
+  } else {
+    url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    method = 'POST';
+  }
+  fetch(url, {
+    method,
+    headers: new Headers({ 'Authorization': 'Bearer ' + token }),
+    body: form
+  }).then(resp => resp.json()).then(file => {
+    fileId = file.id;
+    setGDriveStatus('Sincronizado com Google Drive!', true);
+  }).catch(err => {
+    console.error("Erro ao salvar arquivo no Drive:", err);
+    setGDriveStatus('Falha ao salvar no Drive!', false);
+  });
+}
+
+/* ----------- FIM GOOGLE DRIVE SYNC ----------- */
+
+// Coloque seu CLIENT_ID abaixo (pegue em https://console.cloud.google.com/apis/credentials)
+const CLIENT_ID = '164615992004-fuco8c919u4tk648fib6hs4u238a9ad2.apps.googleusercontent.com'; // <<<< TROQUE AQUI!
+const API_KEY = '';
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+const SCOPES = "https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile";
+
+let GoogleAuth, currentUser, fileId = null;
+let pagamentosDataCache = null;
+let gdriveLoading = false;
+
 // Helper para selecionar elementos (resolve o erro 'el is not defined')
 const el = id => document.getElementById(id);
 const gdriveSyncStatus = el('gdrive-sync-status');

@@ -1,1 +1,680 @@
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controle de Pagamentos — Web com Google Drive Sync</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<!-- Google APIs -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f6f8fa;margin:18px;color:#222}
+.container{max-width:1100px;margin:0 auto}
+h1{margin-bottom:6px}
+.card{background:#fff;border-radius:8px;padding:14px 16px;box-shadow:0 2px 6px rgba(0,0,0,.06);margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+label{display:block;font-size:.92rem;margin-bottom:6px}
+input[type=text],input[type=date],input[type=number],select{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;box-sizing:border-box}
+button{background:#1f6feb;color:#fff;padding:8px 12px;border-radius:6px;border:0;cursor:pointer}
+button.secondary{background:#6c757d}
+button.danger{background:#d32f2f}
+.table-wrap{overflow:auto;max-height:360px;border:1px solid #eee;border-radius:6px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:8px 10px;border-bottom:1px solid #f1f1f1;text-align:left}
+th{background:#fafafa;position:sticky;top:0}
+.controls{display:flex;gap:8px;align-items:center}
+.right{margin-left:auto}
+.summary{font-weight:700;margin-top:10px}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)} .charts{grid-template-columns:1fr}}
+small.note{color:#666}
+.datalist-nomes{width:100%}
+.collapse-btn{font-size:0.96rem;padding:6px 14px;background:#e0e0e0;color:#333;border-radius:5px;border:0;cursor:pointer}
+.collapse-btn[aria-expanded="false"]:after{content:"▼";margin-left:8px;font-size:0.85em;}
+.collapse-btn[aria-expanded="true"]:after{content:"▲";margin-left:8px;font-size:0.85em;}
+.card-collapsible{transition:max-height 0.3s cubic-bezier(0.4,0,0.2,1);overflow:hidden;}
+.card-collapsed{max-height:0 !important;padding-top:0 !important;padding-bottom:0 !important;}
+#backup-restore-dialog{background:rgba(20,20,20,0.16);position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;display:flex;align-items:center;justify-content:center;}
+#backup-restore-content{background:#fff;padding:32px 24px 20px 24px;border-radius:10px;box-shadow:0 4px 24px #0003;min-width:320px;}
+#backup-restore-content h2{margin-top:0;}
+#restore-file-input{margin-bottom:8px;}
+#google-auth{margin-bottom:12px;}
+#gdrive-sync-status{font-size:0.93rem;color: #1f6feb;margin-left:12px;}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Controle de Pagamentos</h1>
+
+<!-- Google Auth -->
+<div id="google-auth">
+  <button id="btn-google-login">Login com Google</button>
+  <button id="btn-google-logout" style="display:none">Logout</button>
+  <span id="google-user"></span>
+  <span id="gdrive-sync-status"></span>
+</div>
+
+<!-- Registro de Pagamento -->
+<div class="card">
+  <strong>Registrar Pagamento</strong>
+  <div class="grid" style="margin-top:8px">
+    <div>
+      <label>Nome</label>
+      <input id="input-nome" type="text" placeholder="Ex.: João Silva" list="datalist-nomes" autocomplete="off">
+      <datalist id="datalist-nomes"></datalist>
+    </div>
+    <div><label>Data</label><input id="input-data" type="date"></div>
+    <div><label>Valor (R$)</label><input id="input-valor" type="number" step="0.01" placeholder="1000.00"></div>
+    <div><label>Histórico</label><input id="input-historico" type="text" placeholder="Descrição"></div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button id="btn-registrar">Registrar</button>
+    <button id="btn-limpar" class="secondary">Limpar</button>
+    <button id="btn-save-close" class="danger" title="Gera backup CSV/XLSX e fecha o programa">Salvar e Fechar</button>
+    <div style="margin-left:auto"><small class="note">Dados sincronizados com Google Drive (login obrigatório).</small></div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card">
+  <strong>Filtros</strong>
+  <div class="grid" style="margin-top:8px">
+    <div><label>Nome (contém)</label><input id="filtro-nome" type="text" placeholder="Filtrar por nome"></div>
+    <div><label>Data inicial</label><input id="filtro-di" type="date"></div>
+    <div><label>Data final</label><input id="filtro-df" type="date"></div>
+    <div><label>&nbsp;</label>
+      <div style="display:flex;gap:8px">
+        <button id="btn-aplicar-filtros">Aplicar Filtros</button>
+        <button id="btn-limpar-filtros" class="secondary">Limpar Filtros</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráficos -->
+<div class="card" id="card-graficos">
+  <strong>Gráficos</strong>
+  <div class="charts">
+    <div><canvas id="chart-nomes"></canvas></div>
+    <div><canvas id="chart-meses"></canvas></div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:8px">
+    <button id="btn-atualizar-graficos">Atualizar Gráficos (com filtros)</button>
+    <button id="btn-relatorio-mes" class="secondary">Relatório Mensal (PDF)</button>
+    <button id="btn-relatorio-ano" class="secondary">Relatório Anual (PDF)</button>
+    <button id="btn-reset" class="secondary" style="margin-left:auto">Resetar todos os dados</button>
+  </div>
+</div>
+
+<!-- Registros (colapsável) -->
+<div class="card" id="card-registros-externo" style="margin-top:0">
+  <div style="display:flex;align-items:center">
+    <strong>Registros</strong>
+    <button type="button" id="btn-toggle-registros" class="collapse-btn" aria-expanded="true" style="margin-left:18px">Recolher/Expandir</button>
+    <div class="right controls">
+      <button id="btn-export-csv" class="secondary">Exportar CSV (filtrados)</button>
+      <button id="btn-export-xlsx" class="secondary">Exportar XLSX (filtrados)</button>
+      <label style="margin-left:8px">
+        <input id="file-import" type="file" accept=".csv" style="display:none">
+        <button id="btn-import-csv" class="secondary">Importar CSV</button>
+      </label>
+    </div>
+  </div>
+  <div id="card-registros-collapsible" class="card-collapsible" style="max-height:1000px;">
+    <div class="table-wrap">
+      <table id="tbl-registros">
+        <thead>
+          <tr><th>ID</th><th>Nome</th><th>Data</th><th style="text-align:right">Valor (R$)</th><th>Histórico</th><th>Ações</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="summary" id="resumo-total">Total: R$ 0,00</div>
+  </div>
+</div>
+
+<!-- Diálogo de restauração de backup -->
+<div id="backup-restore-dialog" style="display:none;">
+  <div id="backup-restore-content">
+    <h2>Restaurar backup?</h2>
+    <p>Deseja carregar um backup para restaurar os registros anteriores?</p>
+    <input id="restore-file-input" type="file" accept=".csv,.xlsx">
+    <div style="margin-top:12px">
+      <button id="btn-restore-ok">Restaurar backup</button>
+      <button id="btn-restore-cancel" class="secondary">Não restaurar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ----------- Google Drive SYNC ----------- */
+
+// Coloque seu CLIENT_ID abaixo (pegue em https://console.cloud.google.com/apis/credentials)
+const CLIENT_ID = '164615992004-fuco8c919u4tk648fib6hs4u238a9ad2.apps.googleusercontent.com'; // <<<< TROQUE AQUI!
+const API_KEY = '';
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+const SCOPES = "https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile";
+
+let GoogleAuth, currentUser, fileId = null;
+let pagamentosDataCache = null;
+let gdriveLoading = false;
+
+// Elementos
+const el = id => document.getElementById(id);
+const gdriveSyncStatus = el('gdrive-sync-status');
+
+// Inicializa Google API
+function initGoogleAPI() {
+  gapi.load('client:auth2', () => {
+    gapi.client.init({
+      apiKey: API_KEY,
+      clientId: CLIENT_ID,
+      discoveryDocs: DISCOVERY_DOCS,
+      scope: SCOPES
+    }).then(() => {
+      GoogleAuth = gapi.auth2.getAuthInstance();
+      GoogleAuth.isSignedIn.listen(updateSigninStatus);
+      updateSigninStatus(GoogleAuth.isSignedIn.get());
+      el('btn-google-login').onclick = () => GoogleAuth.signIn();
+      el('btn-google-logout').onclick = () => GoogleAuth.signOut();
+    });
+  });
+}
+function updateSigninStatus(isSignedIn) {
+  if (isSignedIn) {
+    currentUser = GoogleAuth.currentUser.get();
+    el('btn-google-login').style.display = 'none';
+    el('btn-google-logout').style.display = '';
+    el('google-user').textContent = "Olá, " + currentUser.getBasicProfile().getName();
+    carregarDadosDrive();
+  } else {
+    el('btn-google-login').style.display = '';
+    el('btn-google-logout').style.display = 'none';
+    el('google-user').textContent = '';
+    pagamentosDataCache = null;
+    fileId = null;
+    gdriveSyncStatus.textContent = '';
+    // Limpa interface
+    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+  }
+}
+function setGDriveStatus(msg, ok = true) {
+  gdriveSyncStatus.textContent = msg;
+  gdriveSyncStatus.style.color = ok ? '#1f6feb' : '#d32f2f';
+}
+function carregarDadosDrive() {
+  gdriveLoading = true;
+  setGDriveStatus("Carregando dados do Google Drive...", true);
+  gapi.client.drive.files.list({
+    spaces: 'appDataFolder',
+    q: "name = 'pagamentos_data.json' and trashed = false",
+    fields: "files(id, name)"
+  }).then(function (response) {
+    if (response.result.files && response.result.files.length) {
+      fileId = response.result.files[0].id;
+      // Baixa o conteúdo
+      gapi.client.drive.files.get({
+        fileId: fileId,
+        alt: 'media'
+      }).then(res => {
+        try {
+          pagamentosDataCache = JSON.parse(res.body);
+          setGDriveStatus('Sincronizado com Google Drive!', true);
+        } catch (e) {
+          pagamentosDataCache = [];
+          setGDriveStatus('Arquivo corrompido. Começando do zero!', false);
+        }
+        gdriveLoading = false;
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      }, err => {
+        pagamentosDataCache = [];
+        gdriveLoading = false;
+        setGDriveStatus('Falha ao carregar dados do Drive.', false);
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      });
+    } else {
+      // Cria arquivo vazio no Drive
+      salvarDadosDrive([]);
+      gdriveLoading = false;
+    }
+  }, err => {
+    pagamentosDataCache = [];
+    gdriveLoading = false;
+    setGDriveStatus('Erro ao acessar o Google Drive.', false);
+    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+  });
+}
+function salvarDadosDrive(dados) {
+  pagamentosDataCache = [...dados];
+  setGDriveStatus("Salvando no Google Drive...", true);
+  const blob = new Blob([JSON.stringify(dados)], { type: 'application/json' });
+  const metadata = {
+    name: 'pagamentos_data.json',
+    parents: ['appDataFolder']
+  };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const token = gapi.auth.getToken().access_token;
+  let url, method;
+  if (fileId) {
+    url = 'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=multipart';
+    method = 'PATCH';
+  } else {
+    url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    method = 'POST';
+  }
+  fetch(url, {
+    method,
+    headers: new Headers({ 'Authorization': 'Bearer ' + token }),
+    body: form
+  }).then(resp => resp.json()).then(file => {
+    fileId = file.id;
+    setGDriveStatus('Sincronizado com Google Drive!', true);
+  }).catch(() => {
+    setGDriveStatus('Falha ao salvar no Drive!', false);
+  });
+}
+
+/* ----------- FIM GOOGLE DRIVE SYNC ----------- */
+
+// Funções utilitárias e elementos já do app original
+const fmtCurrency = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const inputNome = el('input-nome'), inputData = el('input-data'), inputValor = el('input-valor'), inputHistorico = el('input-historico');
+const filtroNome = el('filtro-nome'), filtroDi = el('filtro-di'), filtroDf = el('filtro-df');
+const tbody = document.querySelector('#tbl-registros tbody');
+const resumo = el('resumo-total');
+const fileImport = el('file-import');
+const datalistNomes = el('datalist-nomes');
+
+// Backup restore elements
+const backupDialog = el('backup-restore-dialog');
+const restoreFileInput = el('restore-file-input');
+const btnRestoreOk = el('btn-restore-ok');
+const btnRestoreCancel = el('btn-restore-cancel');
+
+let chartNomes = null, chartMeses = null;
+
+// --- SUBSTITUI loadData/saveData para usar Google Drive ---
+const STORAGE_KEY = 'pagamentos_data_v2'; // só para compat/restore
+const nextId = arr => arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1;
+
+const loadData = () => pagamentosDataCache ? [...pagamentosDataCache] : [];
+const saveData = arr => {
+  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) {
+    alert("Faça login com Google para salvar!");
+    return;
+  }
+  salvarDadosDrive(arr);
+};
+
+// ----
+document.addEventListener('DOMContentLoaded', () => {
+  // Remove restore dialog, pois Drive é sempre "novo"
+  backupDialog.style.display = "none";
+  renderTable();
+  atualizarResumo();
+  initCharts();
+  atualizarDatalistNomes();
+});
+
+/* Atualiza datalist de nomes já existentes para agilizar registro */
+function atualizarDatalistNomes() {
+  const arr = loadData();
+  const nomesSet = new Set(arr.map(x => x.nome.toLocaleLowerCase()));
+  datalistNomes.innerHTML = '';
+  Array.from(nomesSet)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    .forEach(nomeLC => {
+      const nomeOriginal = arr.find(x => x.nome.toLocaleLowerCase() === nomeLC)?.nome || nomeLC;
+      const option = document.createElement('option');
+      option.value = nomeOriginal;
+      datalistNomes.appendChild(option);
+    });
+}
+
+function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function aplicarFiltros(arr) {
+  const nomeF = (filtroNome.value || '').trim().toLocaleLowerCase();
+  const di = filtroDi.value, df = filtroDf.value;
+  return arr.filter(r => {
+    if (nomeF && !r.nome.toLocaleLowerCase().includes(nomeF)) return false;
+    if (di && r.data < di) return false;
+    if (df && r.data > df) return false;
+    return true;
+  }).sort((a, b) => a.data === b.data ? b.id - a.id : (a.data < b.data ? 1 : -1));
+}
+function renderTable() {
+  const dados = aplicarFiltros(loadData());
+  tbody.innerHTML = '';
+  for (const r of dados) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.id}</td>
+      <td>${escapeHtml(r.nome)}</td>
+      <td>${r.data}</td>
+      <td style="text-align:right">${fmtCurrency(Number(r.valor))}</td>
+      <td>${escapeHtml(r.historico || '')}</td>
+      <td><button onclick="editarRegistro(${r.id})">Editar</button> <button onclick="apagarRegistro(${r.id})" class="secondary">Apagar</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+function atualizarResumo() {
+  const total = aplicarFiltros(loadData()).reduce((s, x) => s + Number(x.valor), 0);
+  resumo.textContent = `Total: ${fmtCurrency(total)}`;
+}
+window.editarRegistro = function editarRegistro(id) {
+  const arr = loadData();
+  const rec = arr.find(x => x.id === id);
+  if (!rec) return;
+  inputNome.value = rec.nome; inputData.value = rec.data; inputValor.value = rec.valor; inputHistorico.value = rec.historico;
+  arr.splice(arr.findIndex(x => x.id === id), 1);
+  saveData(arr); renderTable(); atualizarResumo(); atualizarDatalistNomes();
+}
+window.apagarRegistro = function apagarRegistro(id) {
+  if (!confirm('Apagar este registro?')) return;
+  const arr = loadData().filter(x => x.id !== id);
+  saveData(arr); renderTable(); atualizarResumo(); atualizarDatalistNomes();
+}
+
+/* Eventos principais */
+el('btn-registrar').addEventListener('click', () => {
+  if (gdriveLoading) { alert("Aguarde terminar de carregar do Drive!"); return; }
+  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login no Google primeiro!"); return; }
+  const nome = inputNome.value.trim();
+  const data = inputData.value;
+  const valor = parseFloat(inputValor.value);
+  const historico = inputHistorico.value.trim();
+  if (!nome || !data || isNaN(valor)) { alert('Preencha Nome, Data e Valor corretamente.'); return; }
+  const arr = loadData();
+  const nomeExistente = arr.find(x => x.nome.toLocaleLowerCase() === nome.toLocaleLowerCase());
+  const nomeFinal = nomeExistente ? nomeExistente.nome : nome;
+  arr.push({ id: nextId(arr), nome: nomeFinal, data, valor: Number(valor.toFixed(2)), historico });
+  saveData(arr);
+  inputNome.value = ''; inputData.value = ''; inputValor.value = ''; inputHistorico.value = '';
+  renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+});
+el('btn-limpar').addEventListener('click', () => { inputNome.value = ''; inputData.value = ''; inputValor.value = ''; inputHistorico.value = ''; });
+el('btn-aplicar-filtros').addEventListener('click', () => { renderTable(); atualizarResumo(); desenharGraficosComFiltros(); });
+el('btn-limpar-filtros').addEventListener('click', () => { filtroNome.value = ''; filtroDi.value = ''; filtroDf.value = ''; renderTable(); atualizarResumo(); desenharGraficosComFiltros(); });
+el('btn-reset').addEventListener('click', () => {
+  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login para resetar!"); return; }
+  if (confirm('Apagar todos os dados?')) { saveData([]); renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes(); }
+});
+
+/* Export CSV/XLSX */
+el('btn-export-csv').addEventListener('click', () => {
+  exportarCSV(aplicarFiltros(loadData()), true);
+});
+el('btn-export-xlsx').addEventListener('click', () => {
+  exportarXLSX(aplicarFiltros(loadData()), true);
+});
+
+// Funções de exportação reaproveitáveis
+function exportarCSV(dados, alertVazio) {
+  if (!dados.length) {
+    if (alertVazio) alert('Sem dados para exportar com os filtros atuais.');
+    return;
+  }
+  const header = ['id', 'nome', 'data', 'valor', 'historico'];
+  const rows = [header.join(',')].concat(dados.map(r => header.map(h => {
+    let v = r[h]; if (v == null) v = ''; if (typeof v === 'string' && v.includes(',')) v = `"${v.replace(/"/g, '""')}"`; return v;
+  }).join(',')));
+  const csv = rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `pagamentos_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+function exportarXLSX(dados, alertVazio) {
+  if (!dados.length) {
+    if (alertVazio) alert('Sem dados para exportar com os filtros atuais.');
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(dados);
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Pagamentos');
+  XLSX.writeFile(wb, `pagamentos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+/* Salvar e Fechar */
+el('btn-save-close').addEventListener('click', () => {
+  const dados = loadData();
+  if (!dados.length) {
+    if (!confirm("Nenhum dado registrado. Deseja mesmo fechar o programa?")) return;
+  } else {
+    exportarCSV(dados, false);
+    exportarXLSX(dados, false);
+    alert("Backup salvo nos formatos CSV e XLSX. O programa será fechado.");
+  }
+  window.close();
+  setTimeout(() => {
+    alert("Se o programa não foi fechado automaticamente, feche a aba/janela manualmente.");
+  }, 800);
+});
+
+/* Import CSV */
+el('btn-import-csv').addEventListener('click', () => fileImport.click());
+fileImport.addEventListener('change', ev => {
+  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login antes de importar dados!"); fileImport.value = ''; return; }
+  const f = ev.target.files[0]; if (!f) return;
+  Papa.parse(f, {
+    header: true, skipEmptyLines: true,
+    complete: results => {
+      const data = results.data, arr = loadData(); let added = 0;
+      for (const row of data) {
+        const nome = (row.nome || row.Nome || row.NOME || '').trim();
+        const dataStr = (row.data || row.Data || row.DATA || '').trim();
+        const valorRaw = row.valor || row.Valor || row.VALOR || row.value || row.Value || 0;
+        const historico = (row.historico || row.Histórico || row.HISTORICO || '').trim();
+        if (!nome || !dataStr) continue;
+        const valor = parseFloat(String(valorRaw).replace(',', '.')); if (isNaN(valor)) continue;
+        const nomeExistente = arr.find(x => x.nome.toLocaleLowerCase() === nome.toLocaleLowerCase());
+        const nomeFinal = nomeExistente ? nomeExistente.nome : nome;
+        const exists = arr.some(x => x.nome.toLocaleLowerCase() === nomeFinal.toLocaleLowerCase() && x.data === dataStr && Number(x.valor) === Number(valor));
+        if (exists) continue;
+        arr.push({ id: nextId(arr), nome: nomeFinal, data: dataStr, valor: Number(valor.toFixed(2)), historico }); added++;
+      }
+      saveData(arr);
+      alert(`Importação concluída. Registros adicionados: ${added}`);
+      renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      fileImport.value = '';
+    },
+    error: err => { alert('Erro ao ler CSV: ' + err); fileImport.value = ''; }
+  });
+});
+
+/* Relatórios mensais/anuais em PDF */
+el('btn-relatorio-mes').addEventListener('click', () => {
+  const ano = prompt('Digite o ano (ex.: 2025):'); if (!ano) return;
+  const mes = prompt('Digite o mês (1-12):'); if (!mes) return;
+  const y = String(parseInt(ano)), m = String(parseInt(mes)).padStart(2, '0');
+  const arr = loadData().filter(r => r.data && r.data.slice(0, 4) === y && r.data.slice(5, 7) === m);
+  if (!arr.length) { alert('Nenhum registro encontrado para o período.'); return; }
+  gerarRelatorioPDF(`Relatório ${m}/${y}`, arr);
+});
+el('btn-relatorio-ano').addEventListener('click', () => {
+  const ano = prompt('Digite o ano (ex.: 2025):'); if (!ano) return;
+  const y = String(parseInt(ano));
+  const arr = loadData().filter(r => r.data && r.data.slice(0, 4) === y);
+  if (!arr.length) { alert('Nenhum registro encontrado para o ano.'); return; }
+  gerarRelatorioAnualPorNomeMesPDF(y, arr);
+});
+
+/* Função para exportar PDF dos relatórios mensais (listagem individual) */
+function gerarRelatorioPDF(titulo, registros) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(16);
+  doc.text(titulo, 10, 15);
+
+  doc.setFontSize(11);
+  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 23);
+
+  const colunas = ["ID", "Nome", "Data", "Valor (R$)", "Histórico"];
+  let rows = registros.map(r => [
+    r.id, r.nome, r.data, fmtCurrency(Number(r.valor)), r.historico || ''
+  ]);
+
+  let startY = 30;
+  if (typeof doc.autoTable === "function") {
+    doc.autoTable({
+      head: [colunas],
+      body: rows,
+      startY,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [31, 111, 235] }
+    });
+    const total = registros.reduce((s, x) => s + Number(x.valor), 0);
+    doc.setFontSize(12);
+    doc.text(`Total: ${fmtCurrency(total)}`, 10, doc.lastAutoTable.finalY + 10);
+  } else {
+    let y = startY;
+    doc.setFontSize(10);
+    doc.text(colunas.join(" | "), 10, y);
+    y += 7;
+    rows.forEach(row => {
+      doc.text(row.join(" | "), 10, y);
+      y += 7;
+    });
+    const total = registros.reduce((s, x) => s + Number(x.valor), 0);
+    doc.setFontSize(12);
+    doc.text(`Total: ${fmtCurrency(total)}`, 10, y + 7);
+  }
+
+  doc.save(`${titulo.replace(/ /g, '_')}.pdf`);
+}
+
+/* Função para exportar PDF do relatório anual (somente somatórios por nome/mês/ano, em modo paisagem) */
+function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape" });
+
+  doc.setFontSize(16);
+  doc.text(`Relatório anual ${ano}`, 10, 15);
+  doc.setFontSize(11);
+  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 23);
+
+  const mesesSet = new Set();
+  const nomesSet = new Set();
+  registros.forEach(r => {
+    if (r.data && r.data.slice(0, 4) === ano) {
+      mesesSet.add(r.data.slice(5, 7));
+      nomesSet.add(r.nome);
+    }
+  });
+  const mesesArray = Array.from(mesesSet).sort();
+  const nomesArray = Array.from(nomesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  const somatorios = {};
+  nomesArray.forEach(nome => {
+    somatorios[nome] = {};
+    mesesArray.forEach(mes => { somatorios[nome][mes] = 0; });
+    somatorios[nome]['total'] = 0;
+  });
+  registros.forEach(r => {
+    if (r.data && r.data.slice(0, 4) === ano) {
+      const nome = r.nome;
+      const mes = r.data.slice(5, 7);
+      somatorios[nome][mes] = (somatorios[nome][mes] || 0) + Number(r.valor);
+      somatorios[nome]['total'] += Number(r.valor);
+    }
+  });
+
+  const mesesCabecalho = mesesArray.map(m => `${m}/${ano}`);
+  const colunas = ["Nome"].concat(mesesCabecalho).concat(["Total"]);
+  const rows = nomesArray.map(nome => {
+    const linha = [nome];
+    mesesArray.forEach(mes => linha.push(fmtCurrency(somatorios[nome][mes] || 0)));
+    linha.push(fmtCurrency(somatorios[nome]['total'] || 0));
+    return linha;
+  });
+
+  let startY = 30;
+  if (typeof doc.autoTable === "function") {
+    doc.autoTable({
+      head: [colunas],
+      body: rows,
+      startY,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [31, 111, 235] },
+      margin: { left: 10, right: 10 },
+      tableWidth: 'auto'
+    });
+    const totalAno = registros.reduce((s, x) => s + Number(x.valor), 0);
+    doc.setFontSize(12);
+    doc.text(`Total geral do ano: ${fmtCurrency(totalAno)}`, 10, doc.lastAutoTable.finalY + 10);
+  } else {
+    let y = startY;
+    doc.setFontSize(10);
+    doc.text(colunas.join(" | "), 10, y);
+    y += 7;
+    rows.forEach(row => {
+      doc.text(row.join(" | "), 10, y);
+      y += 7;
+    });
+    const totalAno = registros.reduce((s, x) => s + Number(x.valor), 0);
+    doc.setFontSize(12);
+    doc.text(`Total geral do ano: ${fmtCurrency(totalAno)}`, 10, y + 7);
+  }
+  doc.save(`Relatorio_Anual_${ano}.pdf`);
+}
+
+/* Gráficos */
+el('btn-atualizar-graficos').addEventListener('click', desenharGraficosComFiltros);
+function initCharts() {
+  const ctxN = el('chart-nomes').getContext('2d');
+  chartNomes = new Chart(ctxN, { type: 'bar', data: { labels: [], datasets: [{ label: 'Total por Nome', data: [], backgroundColor: '#1f6feb' }] } });
+  const ctxM = el('chart-meses').getContext('2d');
+  chartMeses = new Chart(ctxM, { type: 'bar', data: { labels: [], datasets: [{ label: 'Total por Mês', data: [], backgroundColor: '#6c757d' }] } });
+  desenharGraficosComFiltros();
+}
+function desenharGraficosComFiltros() {
+  const dados = aplicarFiltros(loadData());
+  const totalPorNome = {}, totalPorMes = {};
+  dados.forEach(r => {
+    totalPorNome[r.nome] = (totalPorNome[r.nome] || 0) + Number(r.valor);
+    const mes = r.data.slice(0, 7); totalPorMes[mes] = (totalPorMes[mes] || 0) + Number(r.valor);
+  });
+  chartNomes.data.labels = Object.keys(totalPorNome);
+  chartNomes.data.datasets[0].data = Object.values(totalPorNome);
+  chartNomes.update();
+  chartMeses.data.labels = Object.keys(totalPorMes);
+  chartMeses.data.datasets[0].data = Object.values(totalPorMes);
+  chartMeses.update();
+}
+
+/* Botão para recolher/expandir registros */
+const btnToggleRegistros = el('btn-toggle-registros');
+const registrosCollapsible = el('card-registros-collapsible');
+let registrosVisiveis = true;
+btnToggleRegistros.addEventListener('click', () => {
+  registrosVisiveis = !registrosVisiveis;
+  if (registrosVisiveis) {
+    registrosCollapsible.style.maxHeight = "1000px";
+    registrosCollapsible.classList.remove('card-collapsed');
+    btnToggleRegistros.setAttribute('aria-expanded', "true");
+  } else {
+    registrosCollapsible.style.maxHeight = "0";
+    registrosCollapsible.classList.add('card-collapsed');
+    btnToggleRegistros.setAttribute('aria-expanded', "false");
+  }
+});
+
+// Inicia Google API ao carregar
+window.onload = function () {
+  if (window.gapi) initGoogleAPI();
+  else setTimeout(() => { if (window.gapi) initGoogleAPI(); }, 500);
+};
+</script>
+</body>
+</html>

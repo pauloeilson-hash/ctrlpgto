@@ -164,7 +164,7 @@ let GoogleAuth, currentUser, fileId = null;
 let pagamentosDataCache = null;
 let gdriveLoading = false;
 
-// Helper
+// Helper para selecionar elementos (resolve o erro 'el is not defined')
 const el = id => document.getElementById(id);
 const gdriveSyncStatus = el('gdrive-sync-status');
 
@@ -182,8 +182,6 @@ function initGoogleAPI() {
       updateSigninStatus(GoogleAuth.isSignedIn.get());
       el('btn-google-login').onclick = () => GoogleAuth.signIn();
       el('btn-google-logout').onclick = () => GoogleAuth.signOut();
-    }).catch(err => {
-      console.error("Erro ao inicializar Google API:", err);
     });
   });
 }
@@ -201,6 +199,7 @@ function updateSigninStatus(isSignedIn) {
     pagamentosDataCache = null;
     fileId = null;
     gdriveSyncStatus.textContent = '';
+    // Limpa interface
     renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
   }
 }
@@ -218,6 +217,7 @@ function carregarDadosDrive() {
   }).then(function (response) {
     if (response.result.files && response.result.files.length) {
       fileId = response.result.files[0].id;
+      // Baixa o conteúdo
       gapi.client.drive.files.get({
         fileId: fileId,
         alt: 'media'
@@ -226,25 +226,23 @@ function carregarDadosDrive() {
           pagamentosDataCache = JSON.parse(res.body);
           setGDriveStatus('Sincronizado com Google Drive!', true);
         } catch (e) {
-          console.error("Erro ao interpretar JSON do Drive:", e);
           pagamentosDataCache = [];
           setGDriveStatus('Arquivo corrompido. Começando do zero!', false);
         }
         gdriveLoading = false;
         renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
       }, err => {
-        console.error("Erro ao baixar arquivo do Drive:", err);
         pagamentosDataCache = [];
         gdriveLoading = false;
         setGDriveStatus('Falha ao carregar dados do Drive.', false);
         renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
       });
     } else {
+      // Cria arquivo vazio no Drive
       salvarDadosDrive([]);
       gdriveLoading = false;
     }
   }, err => {
-    console.error("Erro ao acessar lista de arquivos do Drive:", err);
     pagamentosDataCache = [];
     gdriveLoading = false;
     setGDriveStatus('Erro ao acessar o Google Drive.', false);
@@ -255,7 +253,10 @@ function salvarDadosDrive(dados) {
   pagamentosDataCache = [...dados];
   setGDriveStatus("Salvando no Google Drive...", true);
   const blob = new Blob([JSON.stringify(dados)], { type: 'application/json' });
-  const metadata = { name: 'pagamentos_data.json', parents: ['appDataFolder'] };
+  const metadata = {
+    name: 'pagamentos_data.json',
+    parents: ['appDataFolder']
+  };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', blob);
@@ -276,8 +277,7 @@ function salvarDadosDrive(dados) {
   }).then(resp => resp.json()).then(file => {
     fileId = file.id;
     setGDriveStatus('Sincronizado com Google Drive!', true);
-  }).catch(err => {
-    console.error("Erro ao salvar arquivo no Drive:", err);
+  }).catch(() => {
     setGDriveStatus('Falha ao salvar no Drive!', false);
   });
 }

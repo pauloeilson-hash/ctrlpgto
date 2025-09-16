@@ -164,7 +164,7 @@ let GoogleAuth, currentUser, fileId = null;
 let pagamentosDataCache = null;
 let gdriveLoading = false;
 
-// Elementos
+// Helper para selecionar elementos (resolve o erro 'el is not defined')
 const el = id => document.getElementById(id);
 const gdriveSyncStatus = el('gdrive-sync-status');
 
@@ -479,9 +479,10 @@ fileImport.addEventListener('change', ev => {
         const valor = parseFloat(String(valorRaw).replace(',', '.')); if (isNaN(valor)) continue;
         const nomeExistente = arr.find(x => x.nome.toLocaleLowerCase() === nome.toLocaleLowerCase());
         const nomeFinal = nomeExistente ? nomeExistente.nome : nome;
-        const exists = arr.some(x => x.nome.toLocaleLowerCase() === nomeFinal.toLocaleLowerCase() && x.data === dataStr && Number(x.valor) === Number(valor));
-        if (exists) continue;
-        arr.push({ id: nextId(arr), nome: nomeFinal, data: dataStr, valor: Number(valor.toFixed(2)), historico }); added++;
+
+        /* ✅ ALTERAÇÃO AQUI: removida a verificação de duplicados. */
+        arr.push({ id: nextId(arr), nome: nomeFinal, data: dataStr, valor: Number(valor.toFixed(2)), historico });
+        added++;
       }
       saveData(arr);
       alert(`Importação concluída. Registros adicionados: ${added}`);

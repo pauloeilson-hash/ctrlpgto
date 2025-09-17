@@ -404,12 +404,13 @@ fileImport.addEventListener('change',ev=>{
 
 /* Relatórios mensais/anuais em PDF */
 el('btn-relatorio-mes').addEventListener('click',()=>{
-  const ano=prompt('Digite o ano (ex.: 2025):'); if(!ano) return;
-  const mes=prompt('Digite o mês (1-12):'); if(!mes) return;
-  const y=String(parseInt(ano)), m=String(parseInt(mes)).padStart(2,'0');
-  const arr=loadData().filter(r=>r.data&&r.data.slice(0,4)===y&&r.data.slice(5,7)===m);
-  if(!arr.length){alert('Nenhum registro encontrado para o período.');return;}
-  gerarRelatorioPDF(`Relatório ${m}/${y}`, arr);
+  // NOVO: utiliza os filtros atuais!
+  const arr = aplicarFiltros(loadData());
+  if(!arr.length){
+    alert('Nenhum registro encontrado para o filtro atual.');
+    return;
+  }
+  gerarRelatorioPDF('Relatório Mensal (Filtro Atual)', arr);
 });
 el('btn-relatorio-ano').addEventListener('click',()=>{
   const ano=prompt('Digite o ano (ex.: 2025):'); if(!ano) return;

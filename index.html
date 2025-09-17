@@ -72,7 +72,12 @@ small.note{color:#666}
 <div class="card">
   <strong>Filtros</strong>
   <div class="grid" style="margin-top:8px">
-    <div><label>Nome (contém)</label><input id="filtro-nome" type="text" placeholder="Filtrar por nome"></div>
+    <div>
+      <label>Nome (selecionar)</label>
+      <select id="filtro-nome" style="width:100%">
+        <option value="">-- Todos --</option>
+      </select>
+    </div>
     <div><label>Data inicial</label><input id="filtro-di" type="date"></div>
     <div><label>Data final</label><input id="filtro-df" type="date"></div>
     <div><label>&nbsp;</label>
@@ -167,7 +172,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderTable(); 
   atualizarResumo(); 
   initCharts();
-  atualizarDatalistNomes();
+  atualizarDatalistNomes(); // Atualiza datalist do registro e select do filtro
 });
 
 /* Solicitação de restauração de backup ao iniciar */
@@ -238,7 +243,8 @@ btnRestoreOk.onclick = ()=>{
   }
 };
 
-/* Atualiza datalist de nomes já existentes para agilizar registro */
+/* Atualiza datalist de nomes já existentes para agilizar registro
+   e também o select do filtro de nomes */
 function atualizarDatalistNomes() {
   const arr = loadData();
   const nomesSet = new Set(arr.map(x => x.nome.toLocaleLowerCase()));
@@ -252,16 +258,31 @@ function atualizarDatalistNomes() {
       option.value = nomeOriginal;
       datalistNomes.appendChild(option);
     });
+  atualizarFiltroNomes(); // Atualiza também o select do filtro
+}
+
+// Atualiza select de nomes existentes nos filtros
+function atualizarFiltroNomes() {
+  const arr = loadData();
+  const nomesSet = new Set(arr.map(x => x.nome));
+  const nomesArray = Array.from(nomesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  filtroNome.innerHTML = '<option value="">-- Todos --</option>';
+  nomesArray.forEach(nome => {
+    const opt = document.createElement('option');
+    opt.value = nome;
+    opt.textContent = nome;
+    filtroNome.appendChild(opt);
+  });
 }
 
 function escapeHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-/* Aplica filtro de nome ignorando maiúsculas/minúsculas */
+/* Aplica filtro de nome (agora usando select, não digitável) */
 function aplicarFiltros(arr){
-  const nomeF=(filtroNome.value||'').trim().toLocaleLowerCase();
+  const nomeF=filtroNome.value;
   const di=filtroDi.value, df=filtroDf.value;
   return arr.filter(r=>{
-    if(nomeF && !r.nome.toLocaleLowerCase().includes(nomeF)) return false;
+    if(nomeF && r.nome !== nomeF) return false;
     if(di&&r.data<di) return false;
     if(df&&r.data>df) return false;
     return true;

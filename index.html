@@ -2,16 +2,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Controle de Pagamentos — Web com Google Drive Sync</title>
+<title>Controle de Pagamentos — Web</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<!-- Google APIs -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://apis.google.com/js/api.js"></script>
+
 <style>
 body{font-family:Arial,sans-serif;background:#f6f8fa;margin:18px;color:#222}
 .container{max-width:1100px;margin:0 auto}
@@ -43,21 +41,11 @@ small.note{color:#666}
 #backup-restore-content{background:#fff;padding:32px 24px 20px 24px;border-radius:10px;box-shadow:0 4px 24px #0003;min-width:320px;}
 #backup-restore-content h2{margin-top:0;}
 #restore-file-input{margin-bottom:8px;}
-#google-auth{margin-bottom:12px;}
-#gdrive-sync-status{font-size:0.93rem;color: #1f6feb;margin-left:12px;}
 </style>
 </head>
 <body>
 <div class="container">
 <h1>Controle de Pagamentos</h1>
-
-<!-- Google Auth -->
-<div id="google-auth">
-  <button id="btn-google-login">Login com Google</button>
-  <button id="btn-google-logout" style="display:none">Logout</button>
-  <span id="google-user"></span>
-  <span id="gdrive-sync-status"></span>
-</div>
 
 <!-- Registro de Pagamento -->
 <div class="card">
@@ -76,7 +64,7 @@ small.note{color:#666}
     <button id="btn-registrar">Registrar</button>
     <button id="btn-limpar" class="secondary">Limpar</button>
     <button id="btn-save-close" class="danger" title="Gera backup CSV/XLSX e fecha o programa">Salvar e Fechar</button>
-    <div style="margin-left:auto"><small class="note">Dados sincronizados com Google Drive (login obrigatório).</small></div>
+    <div style="margin-left:auto"><small class="note">Dados salvos localmente no navegador (localStorage).</small></div>
   </div>
 </div>
 
@@ -152,147 +140,19 @@ small.note{color:#666}
 </div>
 
 <script>
-/* ----------- Google Drive SYNC ----------- */
+const STORAGE_KEY='pagamentos_data_v2';
+const fmtCurrency=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const loadData=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch(e){return[];}}
+const saveData=arr=>localStorage.setItem(STORAGE_KEY,JSON.stringify(arr));
+const nextId=arr=>arr.length?Math.max(...arr.map(x=>x.id))+1:1;
+const el=id=>document.getElementById(id);
 
-// Coloque seu CLIENT_ID abaixo (pegue em https://console.cloud.google.com/apis/credentials)
-const CLIENT_ID = '164615992004-fuco8c919u4tk648fib6hs4u238a9ad2.apps.googleusercontent.com'; // <<<< TROQUE AQUI!
-const API_KEY = '';
-const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
-const SCOPES = "https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile";
-
-let GoogleAuth, currentUser, fileId = null;
-let pagamentosDataCache = null;
-let gdriveLoading = false;
-
-// Helper para selecionar elementos (resolve o erro 'el is not defined')
-const el = id => document.getElementById(id);
-const gdriveSyncStatus = el('gdrive-sync-status');
-
-// Inicializa Google API
-function initGoogleAPI() {
-  gapi.load('client:auth2', () => {
-    gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      discoveryDocs: DISCOVERY_DOCS,
-      scope: SCOPES
-    }).then(() => {
-      GoogleAuth = gapi.auth2.getAuthInstance();
-      GoogleAuth.isSignedIn.listen(updateSigninStatus);
-      updateSigninStatus(GoogleAuth.isSignedIn.get());
-      el('btn-google-login').onclick = () => GoogleAuth.signIn();
-      el('btn-google-logout').onclick = () => GoogleAuth.signOut();
-    });
-  });
-}
-function updateSigninStatus(isSignedIn) {
-  if (isSignedIn) {
-    currentUser = GoogleAuth.currentUser.get();
-    el('btn-google-login').style.display = 'none';
-    el('btn-google-logout').style.display = '';
-    el('google-user').textContent = "Olá, " + currentUser.getBasicProfile().getName();
-    carregarDadosDrive();
-  } else {
-    el('btn-google-login').style.display = '';
-    el('btn-google-logout').style.display = 'none';
-    el('google-user').textContent = '';
-    pagamentosDataCache = null;
-    fileId = null;
-    gdriveSyncStatus.textContent = '';
-    // Limpa interface
-    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
-  }
-}
-function setGDriveStatus(msg, ok = true) {
-  gdriveSyncStatus.textContent = msg;
-  gdriveSyncStatus.style.color = ok ? '#1f6feb' : '#d32f2f';
-}
-function carregarDadosDrive() {
-  gdriveLoading = true;
-  setGDriveStatus("Carregando dados do Google Drive...", true);
-  gapi.client.drive.files.list({
-    spaces: 'appDataFolder',
-    q: "name = 'pagamentos_data.json' and trashed = false",
-    fields: "files(id, name)"
-  }).then(function (response) {
-    if (response.result.files && response.result.files.length) {
-      fileId = response.result.files[0].id;
-      // Baixa o conteúdo
-      gapi.client.drive.files.get({
-        fileId: fileId,
-        alt: 'media'
-      }).then(res => {
-        try {
-          pagamentosDataCache = JSON.parse(res.body);
-          setGDriveStatus('Sincronizado com Google Drive!', true);
-        } catch (e) {
-          pagamentosDataCache = [];
-          setGDriveStatus('Arquivo corrompido. Começando do zero!', false);
-        }
-        gdriveLoading = false;
-        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
-      }, err => {
-        pagamentosDataCache = [];
-        gdriveLoading = false;
-        setGDriveStatus('Falha ao carregar dados do Drive.', false);
-        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
-      });
-    } else {
-      // Cria arquivo vazio no Drive
-      salvarDadosDrive([]);
-      gdriveLoading = false;
-    }
-  }, err => {
-    pagamentosDataCache = [];
-    gdriveLoading = false;
-    setGDriveStatus('Erro ao acessar o Google Drive.', false);
-    renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
-  });
-}
-function salvarDadosDrive(dados) {
-  pagamentosDataCache = [...dados];
-  setGDriveStatus("Salvando no Google Drive...", true);
-  const blob = new Blob([JSON.stringify(dados)], { type: 'application/json' });
-  const metadata = {
-    name: 'pagamentos_data.json',
-    parents: ['appDataFolder']
-  };
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', blob);
-
-  const token = gapi.auth.getToken().access_token;
-  let url, method;
-  if (fileId) {
-    url = 'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=multipart';
-    method = 'PATCH';
-  } else {
-    url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-    method = 'POST';
-  }
-  fetch(url, {
-    method,
-    headers: new Headers({ 'Authorization': 'Bearer ' + token }),
-    body: form
-  }).then(resp => resp.json()).then(file => {
-    fileId = file.id;
-    setGDriveStatus('Sincronizado com Google Drive!', true);
-  }).catch(() => {
-    setGDriveStatus('Falha ao salvar no Drive!', false);
-  });
-}
-
-/* ----------- FIM GOOGLE DRIVE SYNC ----------- */
-
-// Funções utilitárias e elementos já do app original
-const fmtCurrency = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-const inputNome = el('input-nome'), inputData = el('input-data'), inputValor = el('input-valor'), inputHistorico = el('input-historico');
-const filtroNome = el('filtro-nome'), filtroDi = el('filtro-di'), filtroDf = el('filtro-df');
-const tbody = document.querySelector('#tbl-registros tbody');
-const resumo = el('resumo-total');
-const fileImport = el('file-import');
-const datalistNomes = el('datalist-nomes');
+const inputNome=el('input-nome'), inputData=el('input-data'), inputValor=el('input-valor'), inputHistorico=el('input-historico');
+const filtroNome=el('filtro-nome'), filtroDi=el('filtro-di'), filtroDf=el('filtro-df');
+const tbody=document.querySelector('#tbl-registros tbody');
+const resumo=el('resumo-total');
+const fileImport=el('file-import');
+const datalistNomes=el('datalist-nomes');
 
 // Backup restore elements
 const backupDialog = el('backup-restore-dialog');
@@ -300,30 +160,83 @@ const restoreFileInput = el('restore-file-input');
 const btnRestoreOk = el('btn-restore-ok');
 const btnRestoreCancel = el('btn-restore-cancel');
 
-let chartNomes = null, chartMeses = null;
+let chartNomes=null, chartMeses=null;
 
-// --- SUBSTITUI loadData/saveData para usar Google Drive ---
-const STORAGE_KEY = 'pagamentos_data_v2'; // só para compat/restore
-const nextId = arr => arr.length ? Math.max(...arr.map(x => x.id)) + 1 : 1;
-
-const loadData = () => pagamentosDataCache ? [...pagamentosDataCache] : [];
-const saveData = arr => {
-  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) {
-    alert("Faça login com Google para salvar!");
-    return;
-  }
-  salvarDadosDrive(arr);
-};
-
-// ----
-document.addEventListener('DOMContentLoaded', () => {
-  // Remove restore dialog, pois Drive é sempre "novo"
-  backupDialog.style.display = "none";
-  renderTable();
-  atualizarResumo();
+document.addEventListener('DOMContentLoaded',()=>{
+  solicitarRestauracaoBackup();
+  renderTable(); 
+  atualizarResumo(); 
   initCharts();
   atualizarDatalistNomes();
 });
+
+/* Solicitação de restauração de backup ao iniciar */
+function solicitarRestauracaoBackup() {
+  // Só mostra se não houver dados já salvos
+  if (loadData().length > 0) return;
+  backupDialog.style.display = "flex";
+  restoreFileInput.value = "";
+}
+btnRestoreCancel.onclick = ()=>{
+  backupDialog.style.display = "none";
+};
+btnRestoreOk.onclick = ()=>{
+  if (!restoreFileInput.files[0]) {
+    alert('Selecione um arquivo de backup (.csv ou .xlsx)!');
+    return;
+  }
+  const file = restoreFileInput.files[0];
+  if (file.name.endsWith('.csv')) {
+    Papa.parse(file,{
+      header:true,skipEmptyLines:true,
+      complete:results=>{
+        const data=results.data, arr=[]; let added=0;
+        for(const row of data){
+          const nome=(row.nome||row.Nome||row.NOME||'').trim();
+          const dataStr=(row.data||row.Data||row.DATA||'').trim();
+          const valorRaw=row.valor||row.Valor||row.VALOR||row.value||row.Value||0;
+          const historico=(row.historico||row.Histórico||row.HISTORICO||'').trim();
+          if(!nome||!dataStr) continue;
+          const valor=parseFloat(String(valorRaw).replace(',','.')); if(isNaN(valor)) continue;
+          arr.push({id:nextId(arr),nome,data:dataStr,valor:Number(valor.toFixed(2)),historico}); added++;
+        }
+        saveData(arr);
+        alert(`Backup restaurado (${added} registros).`);
+        backupDialog.style.display = "none";
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      },
+      error:err=>{alert('Erro ao ler CSV: '+err);}
+    });
+  } else if (file.name.endsWith('.xlsx')) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const workbook = XLSX.read(e.target.result, {type:'binary'});
+        const sheetName = workbook.SheetNames[0];
+        const data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        const arr=[]; let added=0;
+        for(const row of data){
+          const nome=(row.nome||row.Nome||row.NOME||'').trim();
+          const dataStr=(row.data||row.Data||row.DATA||'').trim();
+          const valorRaw=row.valor||row.Valor||row.VALOR||row.value||row.Value||0;
+          const historico=(row.historico||row.Histórico||row.HISTORICO||'').trim();
+          if(!nome||!dataStr) continue;
+          const valor=parseFloat(String(valorRaw).replace(',','.')); if(isNaN(valor)) continue;
+          arr.push({id:nextId(arr),nome,data:dataStr,valor:Number(valor.toFixed(2)),historico}); added++;
+        }
+        saveData(arr);
+        alert(`Backup restaurado (${added} registros).`);
+        backupDialog.style.display = "none";
+        renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
+      } catch(e) {
+        alert('Erro ao ler XLSX: '+e);
+      }
+    }
+    reader.readAsBinaryString(file);
+  } else {
+    alert("Formato de arquivo não suportado. Use .csv ou .xlsx");
+  }
+};
 
 /* Atualiza datalist de nomes já existentes para agilizar registro */
 function atualizarDatalistNomes() {
@@ -333,6 +246,7 @@ function atualizarDatalistNomes() {
   Array.from(nomesSet)
     .sort((a, b) => a.localeCompare(b, 'pt-BR'))
     .forEach(nomeLC => {
+      // Traz o nome do registro original com caixa original:
       const nomeOriginal = arr.find(x => x.nome.toLocaleLowerCase() === nomeLC)?.nome || nomeLC;
       const option = document.createElement('option');
       option.value = nomeOriginal;
@@ -340,173 +254,168 @@ function atualizarDatalistNomes() {
     });
 }
 
-function escapeHtml(str) { return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(str){return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-function aplicarFiltros(arr) {
-  const nomeF = (filtroNome.value || '').trim().toLocaleLowerCase();
-  const di = filtroDi.value, df = filtroDf.value;
-  return arr.filter(r => {
-    if (nomeF && !r.nome.toLocaleLowerCase().includes(nomeF)) return false;
-    if (di && r.data < di) return false;
-    if (df && r.data > df) return false;
+/* Aplica filtro de nome ignorando maiúsculas/minúsculas */
+function aplicarFiltros(arr){
+  const nomeF=(filtroNome.value||'').trim().toLocaleLowerCase();
+  const di=filtroDi.value, df=filtroDf.value;
+  return arr.filter(r=>{
+    if(nomeF && !r.nome.toLocaleLowerCase().includes(nomeF)) return false;
+    if(di&&r.data<di) return false;
+    if(df&&r.data>df) return false;
     return true;
-  }).sort((a, b) => a.data === b.data ? b.id - a.id : (a.data < b.data ? 1 : -1));
+  }).sort((a,b)=>a.data===b.data?b.id-a.id:(a.data<b.data?1:-1));
 }
-function renderTable() {
-  const dados = aplicarFiltros(loadData());
-  tbody.innerHTML = '';
-  for (const r of dados) {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+function renderTable(){
+  const dados=aplicarFiltros(loadData());
+  tbody.innerHTML='';
+  for(const r of dados){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
       <td>${r.id}</td>
       <td>${escapeHtml(r.nome)}</td>
       <td>${r.data}</td>
       <td style="text-align:right">${fmtCurrency(Number(r.valor))}</td>
-      <td>${escapeHtml(r.historico || '')}</td>
+      <td>${escapeHtml(r.historico||'')}</td>
       <td><button onclick="editarRegistro(${r.id})">Editar</button> <button onclick="apagarRegistro(${r.id})" class="secondary">Apagar</button></td>
     `;
     tbody.appendChild(tr);
   }
 }
-function atualizarResumo() {
-  const total = aplicarFiltros(loadData()).reduce((s, x) => s + Number(x.valor), 0);
-  resumo.textContent = `Total: ${fmtCurrency(total)}`;
+function atualizarResumo(){
+  const total=aplicarFiltros(loadData()).reduce((s,x)=>s+Number(x.valor),0);
+  resumo.textContent=`Total: ${fmtCurrency(total)}`;
 }
-window.editarRegistro = function editarRegistro(id) {
-  const arr = loadData();
-  const rec = arr.find(x => x.id === id);
-  if (!rec) return;
-  inputNome.value = rec.nome; inputData.value = rec.data; inputValor.value = rec.valor; inputHistorico.value = rec.historico;
-  arr.splice(arr.findIndex(x => x.id === id), 1);
+function editarRegistro(id){
+  const arr=loadData();
+  const rec=arr.find(x=>x.id===id);
+  if(!rec) return;
+  inputNome.value=rec.nome; inputData.value=rec.data; inputValor.value=rec.valor; inputHistorico.value=rec.historico;
+  arr.splice(arr.findIndex(x=>x.id===id),1);
   saveData(arr); renderTable(); atualizarResumo(); atualizarDatalistNomes();
 }
-window.apagarRegistro = function apagarRegistro(id) {
-  if (!confirm('Apagar este registro?')) return;
-  const arr = loadData().filter(x => x.id !== id);
+function apagarRegistro(id){
+  if(!confirm('Apagar este registro?')) return;
+  const arr=loadData().filter(x=>x.id!==id);
   saveData(arr); renderTable(); atualizarResumo(); atualizarDatalistNomes();
 }
 
 /* Eventos principais */
-el('btn-registrar').addEventListener('click', () => {
-  if (gdriveLoading) { alert("Aguarde terminar de carregar do Drive!"); return; }
-  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login no Google primeiro!"); return; }
-  const nome = inputNome.value.trim();
-  const data = inputData.value;
-  const valor = parseFloat(inputValor.value);
-  const historico = inputHistorico.value.trim();
-  if (!nome || !data || isNaN(valor)) { alert('Preencha Nome, Data e Valor corretamente.'); return; }
-  const arr = loadData();
+el('btn-registrar').addEventListener('click',()=>{
+  const nome=inputNome.value.trim();
+  const data=inputData.value;
+  const valor=parseFloat(inputValor.value);
+  const historico=inputHistorico.value.trim();
+  if(!nome||!data||isNaN(valor)){alert('Preencha Nome, Data e Valor corretamente.');return;}
+  const arr=loadData();
+  // Busca se já existe nome igual (case-insensitive) e usa o nome já cadastrado (mantendo caixa)
   const nomeExistente = arr.find(x => x.nome.toLocaleLowerCase() === nome.toLocaleLowerCase());
   const nomeFinal = nomeExistente ? nomeExistente.nome : nome;
-  arr.push({ id: nextId(arr), nome: nomeFinal, data, valor: Number(valor.toFixed(2)), historico });
+  arr.push({id:nextId(arr),nome:nomeFinal,data,valor:Number(valor.toFixed(2)),historico});
   saveData(arr);
-  inputNome.value = ''; inputData.value = ''; inputValor.value = ''; inputHistorico.value = '';
+  inputNome.value=''; inputData.value=''; inputValor.value=''; inputHistorico.value='';
   renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
 });
-el('btn-limpar').addEventListener('click', () => { inputNome.value = ''; inputData.value = ''; inputValor.value = ''; inputHistorico.value = ''; });
-el('btn-aplicar-filtros').addEventListener('click', () => { renderTable(); atualizarResumo(); desenharGraficosComFiltros(); });
-el('btn-limpar-filtros').addEventListener('click', () => { filtroNome.value = ''; filtroDi.value = ''; filtroDf.value = ''; renderTable(); atualizarResumo(); desenharGraficosComFiltros(); });
-el('btn-reset').addEventListener('click', () => {
-  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login para resetar!"); return; }
-  if (confirm('Apagar todos os dados?')) { saveData([]); renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes(); }
-});
+el('btn-limpar').addEventListener('click',()=>{inputNome.value='';inputData.value='';inputValor.value='';inputHistorico.value='';});
+el('btn-aplicar-filtros').addEventListener('click',()=>{renderTable();atualizarResumo();desenharGraficosComFiltros();});
+el('btn-limpar-filtros').addEventListener('click',()=>{filtroNome.value='';filtroDi.value='';filtroDf.value='';renderTable();atualizarResumo();desenharGraficosComFiltros();});
+el('btn-reset').addEventListener('click',()=>{if(confirm('Apagar todos os dados?')){localStorage.removeItem(STORAGE_KEY);renderTable();atualizarResumo();desenharGraficosComFiltros(); atualizarDatalistNomes();}});
 
 /* Export CSV/XLSX */
-el('btn-export-csv').addEventListener('click', () => {
+el('btn-export-csv').addEventListener('click',()=>{
   exportarCSV(aplicarFiltros(loadData()), true);
 });
-el('btn-export-xlsx').addEventListener('click', () => {
+el('btn-export-xlsx').addEventListener('click',()=>{
   exportarXLSX(aplicarFiltros(loadData()), true);
 });
 
 // Funções de exportação reaproveitáveis
 function exportarCSV(dados, alertVazio) {
-  if (!dados.length) {
-    if (alertVazio) alert('Sem dados para exportar com os filtros atuais.');
+  if(!dados.length){
+    if(alertVazio) alert('Sem dados para exportar com os filtros atuais.');
     return;
   }
-  const header = ['id', 'nome', 'data', 'valor', 'historico'];
-  const rows = [header.join(',')].concat(dados.map(r => header.map(h => {
-    let v = r[h]; if (v == null) v = ''; if (typeof v === 'string' && v.includes(',')) v = `"${v.replace(/"/g, '""')}"`; return v;
+  const header=['id','nome','data','valor','historico'];
+  const rows=[header.join(',')].concat(dados.map(r=>header.map(h=>{
+    let v=r[h]; if(v==null)v=''; if(typeof v==='string'&&v.includes(','))v=`"${v.replace(/"/g,'""')}"`; return v;
   }).join(',')));
-  const csv = rows.join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `pagamentos_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  const csv=rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`pagamentos_${new Date().toISOString().slice(0,10)}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
 function exportarXLSX(dados, alertVazio) {
-  if (!dados.length) {
-    if (alertVazio) alert('Sem dados para exportar com os filtros atuais.');
+  if(!dados.length){
+    if(alertVazio) alert('Sem dados para exportar com os filtros atuais.');
     return;
   }
-  const ws = XLSX.utils.json_to_sheet(dados);
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Pagamentos');
-  XLSX.writeFile(wb, `pagamentos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  const ws=XLSX.utils.json_to_sheet(dados);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Pagamentos');
+  XLSX.writeFile(wb,`pagamentos_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 /* Salvar e Fechar */
-el('btn-save-close').addEventListener('click', () => {
+el('btn-save-close').addEventListener('click',()=>{
   const dados = loadData();
-  if (!dados.length) {
-    if (!confirm("Nenhum dado registrado. Deseja mesmo fechar o programa?")) return;
+  if(!dados.length){
+    if(!confirm("Nenhum dado registrado. Deseja mesmo fechar o programa?")) return;
   } else {
     exportarCSV(dados, false);
     exportarXLSX(dados, false);
     alert("Backup salvo nos formatos CSV e XLSX. O programa será fechado.");
   }
+  // Tenta fechar a janela. Se não for permitido, sugere ao usuário.
   window.close();
-  setTimeout(() => {
+  setTimeout(()=>{
     alert("Se o programa não foi fechado automaticamente, feche a aba/janela manualmente.");
   }, 800);
 });
 
 /* Import CSV */
-el('btn-import-csv').addEventListener('click', () => fileImport.click());
-fileImport.addEventListener('change', ev => {
-  if (!GoogleAuth || !GoogleAuth.isSignedIn.get()) { alert("Faça login antes de importar dados!"); fileImport.value = ''; return; }
-  const f = ev.target.files[0]; if (!f) return;
-  Papa.parse(f, {
-    header: true, skipEmptyLines: true,
-    complete: results => {
-      const data = results.data, arr = loadData(); let added = 0;
-      for (const row of data) {
-        const nome = (row.nome || row.Nome || row.NOME || '').trim();
-        const dataStr = (row.data || row.Data || row.DATA || '').trim();
-        const valorRaw = row.valor || row.Valor || row.VALOR || row.value || row.Value || 0;
-        const historico = (row.historico || row.Histórico || row.HISTORICO || '').trim();
-        if (!nome || !dataStr) continue;
-        const valor = parseFloat(String(valorRaw).replace(',', '.')); if (isNaN(valor)) continue;
+el('btn-import-csv').addEventListener('click',()=>fileImport.click());
+fileImport.addEventListener('change',ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  Papa.parse(f,{header:true,skipEmptyLines:true,
+    complete:results=>{
+      const data=results.data, arr=loadData(); let added=0;
+      for(const row of data){
+        const nome=(row.nome||row.Nome||row.NOME||'').trim();
+        const dataStr=(row.data||row.Data||row.DATA||'').trim();
+        const valorRaw=row.valor||row.Valor||row.VALOR||row.value||row.Value||0;
+        const historico=(row.historico||row.Histórico||row.HISTORICO||'').trim();
+        if(!nome||!dataStr) continue;
+        const valor=parseFloat(String(valorRaw).replace(',','.')); if(isNaN(valor)) continue;
+        // Busca se já existe nome igual (case-insensitive) e usa o nome já cadastrado (mantendo caixa)
         const nomeExistente = arr.find(x => x.nome.toLocaleLowerCase() === nome.toLocaleLowerCase());
         const nomeFinal = nomeExistente ? nomeExistente.nome : nome;
-
-        /* ✅ ALTERAÇÃO AQUI: removida a verificação de duplicados. */
-        arr.push({ id: nextId(arr), nome: nomeFinal, data: dataStr, valor: Number(valor.toFixed(2)), historico });
-        added++;
+        // *** Permitir duplicados: removido bloqueio de registros repetidos!
+        arr.push({id:nextId(arr),nome:nomeFinal,data:dataStr,valor:Number(valor.toFixed(2)),historico}); added++;
       }
       saveData(arr);
       alert(`Importação concluída. Registros adicionados: ${added}`);
       renderTable(); atualizarResumo(); desenharGraficosComFiltros(); atualizarDatalistNomes();
-      fileImport.value = '';
+      fileImport.value='';
     },
-    error: err => { alert('Erro ao ler CSV: ' + err); fileImport.value = ''; }
+    error:err=>{alert('Erro ao ler CSV: '+err); fileImport.value='';}
   });
 });
 
 /* Relatórios mensais/anuais em PDF */
-el('btn-relatorio-mes').addEventListener('click', () => {
-  const ano = prompt('Digite o ano (ex.: 2025):'); if (!ano) return;
-  const mes = prompt('Digite o mês (1-12):'); if (!mes) return;
-  const y = String(parseInt(ano)), m = String(parseInt(mes)).padStart(2, '0');
-  const arr = loadData().filter(r => r.data && r.data.slice(0, 4) === y && r.data.slice(5, 7) === m);
-  if (!arr.length) { alert('Nenhum registro encontrado para o período.'); return; }
+el('btn-relatorio-mes').addEventListener('click',()=>{
+  const ano=prompt('Digite o ano (ex.: 2025):'); if(!ano) return;
+  const mes=prompt('Digite o mês (1-12):'); if(!mes) return;
+  const y=String(parseInt(ano)), m=String(parseInt(mes)).padStart(2,'0');
+  const arr=loadData().filter(r=>r.data&&r.data.slice(0,4)===y&&r.data.slice(5,7)===m);
+  if(!arr.length){alert('Nenhum registro encontrado para o período.');return;}
   gerarRelatorioPDF(`Relatório ${m}/${y}`, arr);
 });
-el('btn-relatorio-ano').addEventListener('click', () => {
-  const ano = prompt('Digite o ano (ex.: 2025):'); if (!ano) return;
-  const y = String(parseInt(ano));
-  const arr = loadData().filter(r => r.data && r.data.slice(0, 4) === y);
-  if (!arr.length) { alert('Nenhum registro encontrado para o ano.'); return; }
+el('btn-relatorio-ano').addEventListener('click',()=>{
+  const ano=prompt('Digite o ano (ex.: 2025):'); if(!ano) return;
+  const y=String(parseInt(ano));
+  const arr=loadData().filter(r=>r.data&&r.data.slice(0,4)===y);
+  if(!arr.length){alert('Nenhum registro encontrado para o ano.');return;}
   gerarRelatorioAnualPorNomeMesPDF(y, arr);
 });
 
@@ -515,17 +424,20 @@ function gerarRelatorioPDF(titulo, registros) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
+  // Cabeçalho
   doc.setFontSize(16);
   doc.text(titulo, 10, 15);
 
   doc.setFontSize(11);
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 23);
 
+  // Tabela
   const colunas = ["ID", "Nome", "Data", "Valor (R$)", "Histórico"];
   let rows = registros.map(r => [
     r.id, r.nome, r.data, fmtCurrency(Number(r.valor)), r.historico || ''
   ]);
 
+  // Renderização simples de tabela com autoTable
   let startY = 30;
   if (typeof doc.autoTable === "function") {
     doc.autoTable({
@@ -535,10 +447,12 @@ function gerarRelatorioPDF(titulo, registros) {
       styles: { fontSize: 10 },
       headStyles: { fillColor: [31, 111, 235] }
     });
-    const total = registros.reduce((s, x) => s + Number(x.valor), 0);
+    // Total
+    const total = registros.reduce((s,x)=>s+Number(x.valor),0);
     doc.setFontSize(12);
     doc.text(`Total: ${fmtCurrency(total)}`, 10, doc.lastAutoTable.finalY + 10);
   } else {
+    // fallback caso autoTable não esteja disponível
     let y = startY;
     doc.setFontSize(10);
     doc.text(colunas.join(" | "), 10, y);
@@ -547,17 +461,18 @@ function gerarRelatorioPDF(titulo, registros) {
       doc.text(row.join(" | "), 10, y);
       y += 7;
     });
-    const total = registros.reduce((s, x) => s + Number(x.valor), 0);
+    const total = registros.reduce((s,x)=>s+Number(x.valor),0);
     doc.setFontSize(12);
     doc.text(`Total: ${fmtCurrency(total)}`, 10, y + 7);
   }
 
-  doc.save(`${titulo.replace(/ /g, '_')}.pdf`);
+  doc.save(`${titulo.replace(/ /g,'_')}.pdf`);
 }
 
 /* Função para exportar PDF do relatório anual (somente somatórios por nome/mês/ano, em modo paisagem) */
 function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
   const { jsPDF } = window.jspdf;
+  // Cria o PDF em orientação paisagem (landscape)
   const doc = new jsPDF({ orientation: "landscape" });
 
   doc.setFontSize(16);
@@ -565,17 +480,19 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
   doc.setFontSize(11);
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 10, 23);
 
+  // Pega meses existentes no ano (ordem cronológica)
   const mesesSet = new Set();
   const nomesSet = new Set();
   registros.forEach(r => {
-    if (r.data && r.data.slice(0, 4) === ano) {
-      mesesSet.add(r.data.slice(5, 7));
+    if(r.data && r.data.slice(0,4) === ano) {
+      mesesSet.add(r.data.slice(5,7));
       nomesSet.add(r.nome);
     }
   });
   const mesesArray = Array.from(mesesSet).sort();
   const nomesArray = Array.from(nomesSet).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
+  // Monta matriz com somatório por nome e mês
   const somatorios = {};
   nomesArray.forEach(nome => {
     somatorios[nome] = {};
@@ -583,16 +500,18 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
     somatorios[nome]['total'] = 0;
   });
   registros.forEach(r => {
-    if (r.data && r.data.slice(0, 4) === ano) {
+    if(r.data && r.data.slice(0,4) === ano) {
       const nome = r.nome;
-      const mes = r.data.slice(5, 7);
+      const mes = r.data.slice(5,7);
       somatorios[nome][mes] = (somatorios[nome][mes] || 0) + Number(r.valor);
       somatorios[nome]['total'] += Number(r.valor);
     }
   });
 
+  // Cabeçalho da tabela
   const mesesCabecalho = mesesArray.map(m => `${m}/${ano}`);
   const colunas = ["Nome"].concat(mesesCabecalho).concat(["Total"]);
+  // Linhas
   const rows = nomesArray.map(nome => {
     const linha = [nome];
     mesesArray.forEach(mes => linha.push(fmtCurrency(somatorios[nome][mes] || 0)));
@@ -600,8 +519,9 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
     return linha;
   });
 
+  // Renderiza tabela
   let startY = 30;
-  if (typeof doc.autoTable === "function") {
+  if(typeof doc.autoTable === "function") {
     doc.autoTable({
       head: [colunas],
       body: rows,
@@ -611,10 +531,12 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
       margin: { left: 10, right: 10 },
       tableWidth: 'auto'
     });
-    const totalAno = registros.reduce((s, x) => s + Number(x.valor), 0);
+    // Total geral do ano
+    const totalAno = registros.reduce((s,x)=>s+Number(x.valor),0);
     doc.setFontSize(12);
     doc.text(`Total geral do ano: ${fmtCurrency(totalAno)}`, 10, doc.lastAutoTable.finalY + 10);
   } else {
+    // fallback
     let y = startY;
     doc.setFontSize(10);
     doc.text(colunas.join(" | "), 10, y);
@@ -623,7 +545,7 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
       doc.text(row.join(" | "), 10, y);
       y += 7;
     });
-    const totalAno = registros.reduce((s, x) => s + Number(x.valor), 0);
+    const totalAno = registros.reduce((s,x)=>s+Number(x.valor),0);
     doc.setFontSize(12);
     doc.text(`Total geral do ano: ${fmtCurrency(totalAno)}`, 10, y + 7);
   }
@@ -631,26 +553,26 @@ function gerarRelatorioAnualPorNomeMesPDF(ano, registros) {
 }
 
 /* Gráficos */
-el('btn-atualizar-graficos').addEventListener('click', desenharGraficosComFiltros);
-function initCharts() {
-  const ctxN = el('chart-nomes').getContext('2d');
-  chartNomes = new Chart(ctxN, { type: 'bar', data: { labels: [], datasets: [{ label: 'Total por Nome', data: [], backgroundColor: '#1f6feb' }] } });
-  const ctxM = el('chart-meses').getContext('2d');
-  chartMeses = new Chart(ctxM, { type: 'bar', data: { labels: [], datasets: [{ label: 'Total por Mês', data: [], backgroundColor: '#6c757d' }] } });
+el('btn-atualizar-graficos').addEventListener('click',desenharGraficosComFiltros);
+function initCharts(){
+  const ctxN=el('chart-nomes').getContext('2d');
+  chartNomes=new Chart(ctxN,{type:'bar',data:{labels:[],datasets:[{label:'Total por Nome',data:[],backgroundColor:'#1f6feb'}]}});
+  const ctxM=el('chart-meses').getContext('2d');
+  chartMeses=new Chart(ctxM,{type:'bar',data:{labels:[],datasets:[{label:'Total por Mês',data:[],backgroundColor:'#6c757d'}]}});
   desenharGraficosComFiltros();
 }
-function desenharGraficosComFiltros() {
-  const dados = aplicarFiltros(loadData());
-  const totalPorNome = {}, totalPorMes = {};
-  dados.forEach(r => {
-    totalPorNome[r.nome] = (totalPorNome[r.nome] || 0) + Number(r.valor);
-    const mes = r.data.slice(0, 7); totalPorMes[mes] = (totalPorMes[mes] || 0) + Number(r.valor);
+function desenharGraficosComFiltros(){
+  const dados=aplicarFiltros(loadData());
+  const totalPorNome={}, totalPorMes={};
+  dados.forEach(r=>{
+    totalPorNome[r.nome]=(totalPorNome[r.nome]||0)+Number(r.valor);
+    const mes=r.data.slice(0,7); totalPorMes[mes]=(totalPorMes[mes]||0)+Number(r.valor);
   });
-  chartNomes.data.labels = Object.keys(totalPorNome);
-  chartNomes.data.datasets[0].data = Object.values(totalPorNome);
+  chartNomes.data.labels=Object.keys(totalPorNome);
+  chartNomes.data.datasets[0].data=Object.values(totalPorNome);
   chartNomes.update();
-  chartMeses.data.labels = Object.keys(totalPorMes);
-  chartMeses.data.datasets[0].data = Object.values(totalPorMes);
+  chartMeses.data.labels=Object.keys(totalPorMes);
+  chartMeses.data.datasets[0].data=Object.values(totalPorMes);
   chartMeses.update();
 }
 
@@ -660,22 +582,16 @@ const registrosCollapsible = el('card-registros-collapsible');
 let registrosVisiveis = true;
 btnToggleRegistros.addEventListener('click', () => {
   registrosVisiveis = !registrosVisiveis;
-  if (registrosVisiveis) {
+  if(registrosVisiveis){
     registrosCollapsible.style.maxHeight = "1000px";
     registrosCollapsible.classList.remove('card-collapsed');
     btnToggleRegistros.setAttribute('aria-expanded', "true");
-  } else {
+  }else{
     registrosCollapsible.style.maxHeight = "0";
     registrosCollapsible.classList.add('card-collapsed');
     btnToggleRegistros.setAttribute('aria-expanded', "false");
   }
 });
-
-// Inicia Google API ao carregar
-window.onload = function () {
-  if (window.gapi) initGoogleAPI();
-  else setTimeout(() => { if (window.gapi) initGoogleAPI(); }, 500);
-};
 </script>
 </body>
 </html>

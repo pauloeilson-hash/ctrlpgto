@@ -1,0 +1,571 @@
+:root {
+    --primary-color: #1f6feb;
+    --secondary-color: #6c757d;
+    --danger-color: #d32f2f;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --background-color: #f6f8fa;
+    --text-color: #222;
+    --border-color: #ccc;
+    --card-shadow: 0 2px 6px rgba(0,0,0,.06);
+    --border-radius: 8px;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: var(--background-color);
+    margin: 18px;
+    color: var(--text-color);
+    line-height: 1.4;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+h1 {
+    margin-bottom: 6px;
+    color: var(--text-color);
+}
+
+/* Cards */
+.card {
+    background: #fff;
+    border-radius: var(--border-radius);
+    padding: 14px 16px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 12px;
+}
+
+.card--collapsible {
+    transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), 
+                padding 0.3s cubic-bezier(0.4,0,0.2,1),
+                opacity 0.2s ease;
+    overflow: hidden;
+    max-height: 1000px;
+    opacity: 1;
+}
+
+.card--collapsed {
+    max-height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    opacity: 0;
+}
+
+/* Garante que a tabela fique visível dentro do card collapsible */
+.card-collapsible .table-wrap {
+    transition: opacity 0.3s ease;
+}
+
+.card-collapsed .table-wrap {
+    opacity: 0;
+}
+
+/* Grid System */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Form Elements */
+label {
+    display: block;
+    font-size: .92rem;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="number"],
+input[type="file"],
+select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(31, 111, 235, 0.1);
+}
+
+/* Buttons */
+button {
+    background: var(--primary-color);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 0;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button.secondary {
+    background: var(--secondary-color);
+}
+
+button.danger {
+    background: var(--danger-color);
+}
+
+button.success {
+    background: var(--success-color);
+}
+
+button.warning {
+    background: var(--warning-color);
+    color: #000;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Table Styles */
+.table-wrap {
+    overflow: auto;
+    max-height: 360px;
+    border: 1px solid #eee;
+    border-radius: var(--border-radius);
+    margin-top: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .95rem;
+}
+
+th, td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f1f1f1;
+    text-align: left;
+}
+
+th {
+    background: #fafafa;
+    position: sticky;
+    top: 0;
+    font-weight: 600;
+}
+
+tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Summary */
+.summary {
+    font-weight: 700;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: var(--border-radius);
+}
+
+/* Charts */
+.charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.right {
+    margin-left: auto;
+}
+
+/* Collapse Button */
+.collapse-btn {
+    font-size: 0.96rem;
+    padding: 6px 14px;
+    background: #e0e0e0;
+    color: #333;
+    border-radius: 5px;
+    border: 0;
+    cursor: pointer;
+}
+
+.collapse-btn:hover {
+    background: #d0d0d0;
+}
+
+.collapse-btn[aria-expanded="false"]::after {
+    content: "▼";
+    margin-left: 8px;
+    font-size: 0.85em;
+}
+
+.collapse-btn[aria-expanded="true"]::after {
+    content: "▲";
+    margin-left: 8px;
+    font-size: 0.85em;
+}
+
+/* Dialog */
+#backup-restore-dialog {
+    background: rgba(20,20,20,0.16);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#backup-restore-content {
+    background: #fff;
+    padding: 32px 24px 20px 24px;
+    border-radius: 10px;
+    box-shadow: 0 4px 24px #0003;
+    min-width: 320px;
+    max-width: 90vw;
+}
+
+#backup-restore-content h2 {
+    margin-top: 0;
+}
+
+#restore-file-input {
+    margin-bottom: 8px;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 12px 16px;
+    border-radius: var(--border-radius);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease;
+    min-width: 250px;
+}
+
+.toast--success {
+    background: var(--success-color);
+}
+
+.toast--error {
+    background: var(--danger-color);
+}
+
+.toast--warning {
+    background: var(--warning-color);
+    color: #000;
+}
+
+.toast--info {
+    background: var(--primary-color);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.toast.fade-out {
+    animation: slideOut 0.3s ease forwards;
+}
+
+@keyframes slideOut {
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Utility Classes */
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-1 {
+    margin-top: 8px;
+}
+
+.mb-1 {
+    margin-bottom: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Note Text */
+small.note {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: " (carregando...)";
+    font-style: italic;
+}
+
+/* Garante que os canvases tenham tamanho adequado */
+#chart-nomes, #chart-meses {
+    width: 100% !important;
+    height: 300px !important;
+    max-height: 300px;
+}
+
+/* Melhora a responsividade dos gráficos */
+.charts > div {
+    position: relative;
+    height: 300px;
+}
+
+/* Para telas menores */
+@media (max-width: 900px) {
+    #chart-nomes, #chart-meses {
+        height: 250px !important;
+    }
+    
+    .charts > div {
+        height: 250px;
+    }
+}
+
+@media (max-width: 600px) {
+    #chart-nomes, #chart-meses {
+        height: 200px !important;
+    }
+    
+    .charts > div {
+        height: 200px;
+    }
+}
+
+/* Melhora a aparência dos gráficos */
+canvas {
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+/* Botão do Modo Escuro */
+.darkmode-toggle {
+    background: var(--secondary-color);
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.darkmode-toggle:hover {
+    background: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+/* ===== MODO ESCURO ===== */
+[data-theme="dark"] {
+    --primary-color: #3b8eff;
+    --secondary-color: #8b949e;
+    --danger-color: #f85149;
+    --success-color: #3fb950;
+    --warning-color: #d29922;
+    --background-color: #0d1117;
+    --text-color: #c9d1d9;
+    --border-color: #30363d;
+    --card-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+
+[data-theme="dark"] body {
+    background: var(--background-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .card {
+    background: #161b22;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="file"],
+[data-theme="dark"] select {
+    background: #0d1117;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .table-wrap {
+    border: 1px solid var(--border-color);
+    background: #161b22;
+}
+
+[data-theme="dark"] th {
+    background: #161b22;
+    border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] td {
+    border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] tr:hover {
+    background-color: #1c2128;
+}
+
+[data-theme="dark"] .summary {
+    background: #161b22;
+}
+
+[data-theme="dark"] .toast {
+    background: #161b22;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] canvas {
+    background: #161b22;
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] #backup-restore-content {
+    background: #161b22;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .collapse-btn {
+    background: var(--secondary-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .collapse-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+[data-theme="dark"] small.note {
+    color: var(--secondary-color);
+}
+
+/* CORREÇÃO DO DATALIST NO MODO ESCURO */
+[data-theme="dark"] datalist option {
+    background: #161b22;
+    color: #c9d1d9;
+}
+
+[data-theme="dark"] select option {
+    background: #161b22;
+    color: #c9d1d9;
+}
+
+/* Estilos para a nova seção de backup */
+#btn-backup-local {
+    background: var(--success-color);
+}
+
+#btn-restore-local {
+    background: var(--secondary-color);
+}
+
+/* Estados dos botões do Google Drive */
+#btn-backup-drive:not(:disabled),
+#btn-restore-drive:not(:disabled) {
+    background: var(--primary-color);
+}
+
+#btn-logout-drive:not(:disabled) {
+    background: var(--danger-color);
+}
+
+/* Modo escuro - ajustes */
+[data-theme="dark"] .backup-info {
+    background: #1c2128;
+    border: 1px solid var(--border-color);
+}
+
+/* Transições suaves apenas para elementos que mudam no modo escuro */
+[data-theme="dark"] body,
+[data-theme="dark"] .card,
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] .table-wrap,
+[data-theme="dark"] th,
+[data-theme="dark"] td,
+[data-theme="dark"] .toast,
+[data-theme="dark"] canvas {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}

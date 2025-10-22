@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Combustível - Frota</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Header Fixo -->
+    <header class="main-header">
+        <button onclick="voltarAoMenu()" class="back-button">
+            ⬅️ Voltar ao Menu Principal
+        </button>
+        
+        <span class="system-name">
+            <span id="nome-sistema">Controle de Combustíveis</span>
+        </span>
+    </header>
+
+    <!-- Botão de Tema -->
+    <button class="theme-toggle" id="theme-toggle">🌙</button>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content">
+        <div class="container">
+            <header class="page-header">
+                <h1>Controle de Combustível - Frota</h1>
+                <p class="description">Controle os gastos com combustível de sua frota de veículos</p>
+            </header>
+            
+            <div class="tabs">
+                <div class="tab active" data-tab="visao-geral">Visão Geral</div>
+                <div class="tab" data-tab="veiculos">Veículos</div>
+                <div class="tab" data-tab="abastecimentos">Abastecimentos</div>
+                <div class="tab" data-tab="graficos">Gráficos</div>
+                <div class="tab" data-tab="backup">Backup</div> <!-- NOVA ABA -->
+            </div>            
+
+            <!-- VISÃO GERAL -->
+            <div class="tab-content active" id="visao-geral">
+                <section class="dashboard">
+                    <div class="card">
+                        <h3>Total Gasto na Frota</h3>
+                        <div class="card-value total" id="total-frota">R$ 0,00</div>
+                    </div>
+                    <div class="card">
+                        <h3>Total de Veículos</h3>
+                        <div class="card-value veiculos" id="total-veiculos">0</div>
+                    </div>
+                    <div class="card">
+                        <h3>Média por Litro</h3>
+                        <div class="card-value" id="media-litro-frota">R$ 0,00</div>
+                    </div>
+                    <div class="card">
+                        <h3>Total de Litros</h3>
+                        <div class="card-value" id="total-litros-frota">0 L</div>
+                    </div>
+                </section>
+                
+                <section class="table-container">
+                    <h2 class="form-title">Resumo por Veículo</h2>
+                    <table id="tabela-resumo-veiculos">
+                        <thead>
+                            <tr>
+                                <th>Veículo</th>
+                                <th>Placa</th>
+                                <th>Total Gasto</th>
+                                <th>Litros</th>
+                                <th>Média R$/L</th>
+                                <th>Último Abastecimento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-resumo-corpo">
+                            <!-- Os dados serão inseridos aqui via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="empty-resumo" class="empty-message">
+                        Nenhum veículo cadastrado ainda.
+                    </div>
+                </section>
+            </div>
+            
+            <!-- VEÍCULOS -->
+            <div class="tab-content" id="veiculos">
+                <section class="form-container">
+                    <h2 class="form-title">Cadastrar Veículo</h2>
+                    <form id="veiculo-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="nome-veiculo">Nome do Veículo</label>
+                                <input type="text" id="nome-veiculo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="placa">Placa</label>
+                                <input type="text" id="placa" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="tipo-veiculo">Tipo de Veículo</label>
+                                <select id="tipo-veiculo" required>
+                                    <option value="">Selecione</option>
+                                    <option value="ambulancia">Ambulância</option>
+                                    <option value="carro">Carro</option>
+                                    <option value="moto">Moto</option>
+                                    <option value="caminhao">Caminhão</option>
+                                    <option value="van">Van</option>
+                                    <option value="onibus">Ônibus</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="combustivel-padrao">Combustível Padrão</label>
+                                <select id="combustivel-padrao" required>
+                                    <option value="">Selecione</option>
+                                    <option value="gasolina">Gasolina</option>
+                                    <option value="etanol">Etanol</option>
+                                    <option value="diesel">Diesel</option>
+                                    <option value="gnv">GNV</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit">Cadastrar Veículo</button>
+                            <button type="button" id="btn-limpar-veiculo" class="btn-danger">Limpar Campos</button>
+                        </div>
+                    </form>
+                </section>
+                
+                <section class="table-container">
+                    <h2 class="form-title">Veículos Cadastrados</h2>
+                    <table id="tabela-veiculos">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Placa</th>
+                                <th>Tipo</th>
+                                <th>Combustível</th>
+                                <th>Total Gasto</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-veiculos-corpo">
+                            <!-- Os dados serão inseridos aqui via JavaScript -->
+                        </tbody>
+                    </table>
+                    <div id="empty-veiculos" class="empty-message">
+                        Nenhum veículo cadastrado ainda.
+                    </div>
+                </section>
+            </div>
+            
+<!-- ABASTECIMENTOS -->
+<div class="tab-content" id="abastecimentos">
+    <section class="form-container">
+        <h2 class="form-title">Registrar Abastecimento</h2>
+        <div class="help-text">
+            <small>💡 <strong>Como preencher:</strong> Informe quaisquer DOIS valores que o sistema calculará o terceiro automaticamente.</small>
+            <br>
+            <small>Exemplos: Litros + Preço/L → calcula Total | Total + Preço/L → calcula Litros | Total + Litros → calcula Preço/L</small>
+        </div>
+        
+        <form id="abastecimento-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="veiculo">Veículo</label>
+                    <select id="veiculo" required>
+                        <option value="">Selecione um veículo</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="data">Data</label>
+                    <input type="date" id="data" required>
+                </div>
+                <div class="form-group">
+                    <label for="combustivel">Tipo de Combustível</label>
+                    <select id="combustivel" required>
+                        <option value="">Selecione</option>
+                        <option value="gasolina">Gasolina</option>
+                        <option value="etanol">Etanol</option>
+                        <option value="diesel">Diesel</option>
+                        <option value="gnv">GNV</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="litros">Litros</label>
+                    <input type="number" id="litros" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="preco-litro">Preço por Litro (R$)</label>
+                    <input type="number" id="preco-litro" step="0.001" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="valor-total">Valor Total (R$)</label>
+                    <input type="number" id="valor-total" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="odometro">Odômetro (km)</label>
+                    <input type="number" id="odometro" min="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <button type="submit">Adicionar Abastecimento</button>
+                <button type="button" id="btn-limpar" class="btn-danger">Limpar Campos</button>
+            </div>
+        </form>
+    </section>
+    
+    <section class="table-container">
+        <h2 class="form-title">Histórico de Abastecimentos</h2>
+        <div class="filtro-veiculo">
+            <label for="filtro-veiculo-abastecimentos">Filtrar por veículo:</label>
+            <select id="filtro-veiculo-abastecimentos">
+                <option value="todos">Todos os veículos</option>
+            </select>
+        </div>
+        <table id="tabela-abastecimentos">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Veículo</th>
+                    <th>Combustível</th>
+                    <th>Litros</th>
+                    <th>Preço/L (R$)</th>
+                    <th>Total (R$)</th>
+                    <th>Odômetro (km)</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                <!-- Os dados serão inseridos aqui via JavaScript -->
+            </tbody>
+        </table>
+        <div id="empty-message" class="empty-message">
+            Nenhum abastecimento registrado ainda.
+        </div>
+    </section>
+</div>            
+            <!-- GRÁFICOS -->
+<div class="tab-content" id="graficos">
+    <!-- FILTRO AVANÇADO -->
+    <section class="form-container">
+        <h2 class="form-title">Filtros Avançados</h2>
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="filtro-veiculo-graficos">Filtrar por Veículo</label>
+                <select id="filtro-veiculo-graficos" multiple size="4">
+                    <option value="todos" selected>Todos os Veículos</option>
+                </select>
+                <small>Segure Ctrl para selecionar múltiplos veículos</small>
+            </div>
+            <div class="form-group">
+                <label for="filtro-data-inicio">Data Início</label>
+                <input type="date" id="filtro-data-inicio">
+            </div>
+            <div class="form-group">
+                <label for="filtro-data-fim">Data Fim</label>
+                <input type="date" id="filtro-data-fim">
+            </div>
+            <div class="form-group">
+                <label for="filtro-combustivel">Tipo de Combustível</label>
+                <select id="filtro-combustivel" multiple size="3">
+                    <option value="todos" selected>Todos</option>
+                    <option value="gasolina">Gasolina</option>
+                    <option value="etanol">Etanol</option>
+                    <option value="diesel">Diesel</option>
+                    <option value="gnv">GNV</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <button type="button" id="btn-aplicar-filtros" class="btn-warning">Aplicar Filtros</button>
+            <button type="button" id="btn-limpar-filtros" class="btn-danger">Limpar Filtros</button>
+        </div>
+    </section>
+
+    <section class="charts-container">
+        <div class="chart-card">
+            <h3 class="chart-title">Gastos por Veículo</h3>
+            <canvas id="grafico-gastos-veiculos"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Distribuição por Combustível</h3>
+            <canvas id="grafico-combustivel"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Evolução de Gastos Mensais</h3>
+            <canvas id="grafico-evolucao-gastos"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3 class="chart-title">Comparação de Médias por Veículo</h3>
+            <canvas id="grafico-medias-veiculos"></canvas>
+        </div>
+    </section>
+</div>
+        </div>
+
+        <!-- BACKUP -->
+<div class="tab-content" id="backup">
+    <section class="form-container">
+        <h2 class="form-title">Backup dos Dados</h2>
+        <p>Faça backup de todos os seus dados ou restaure de um backup anterior.</p>
+        
+        <div class="form-grid">
+            <div class="form-group">
+                <h3>Exportar Dados</h3>
+                <p>Faça download de todos os dados atuais em formato JSON.</p>
+                <button type="button" id="btn-exportar" class="btn-warning">Exportar Backup</button>
+            </div>
+            
+            <div class="form-group">
+                <h3>Importar Dados</h3>
+                <p>Restore dados de um backup anterior. <strong>Atenção:</strong> Isso substituirá todos os dados atuais.</p>
+                <input type="file" id="arquivo-backup" accept=".json" style="margin-bottom: 10px;">
+                <button type="button" id="btn-importar" class="btn-danger">Importar Backup</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-container">
+        <h2 class="form-title">Informações do Sistema</h2>
+        <div class="veiculo-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="info-veiculos">0</div>
+                <div class="stat-label">Veículos Cadastrados</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="info-abastecimentos">0</div>
+                <div class="stat-label">Abastecimentos</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="info-total-gasto">R$ 0,00</div>
+                <div class="stat-label">Total Gasto</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="info-ultimo-backup">-</div>
+                <div class="stat-label">Último Backup</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="form-container">
+        <h2 class="form-title">Limpeza de Dados</h2>
+        <p class="warning-text">⚠️ <strong>Atenção:</strong> Estas ações são irreversíveis!</p>
+        
+        <div class="form-group">
+            <button type="button" id="btn-limpar-tudo" class="btn-danger">Limpar TODOS os Dados</button>
+            <small>Remove todos os veículos e abastecimentos</small>
+        </div>
+    </section>
+</div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+    function voltarAoMenu() {
+        // Navegação inteligente que funciona em qualquer ambiente
+        if (window.location.pathname.includes('/sistema-financeiro/') || 
+            window.location.pathname.includes('/sistema-combustiveis/')) {
+            window.location.href = '../index.html';
+        } else {
+            window.location.href = './index.html';
+        }
+    }
+
+    // Opcional: Detecta qual sistema está rodando
+    if (window.location.pathname.includes('combustiveis') || 
+        document.title.includes('Combustível')) {
+        document.getElementById('nome-sistema').textContent = 'Controle de Combustíveis';
+    }
+    </script>
+</body>
+</html>

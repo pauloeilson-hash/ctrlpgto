@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Cálculo de Financiamento</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #04045a;
+    padding: 15px 20px;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.137);
+}        
+
+.back-button {
+    background: #ffffff;
+    color: rgb(106, 13, 228);
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.system-name {
+    color: white;
+    margin-left: 20px;
+    font-weight: bold;
+}
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #555;
+            margin-bottom: 15px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input {
+            width: auto;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            margin-top: 10px;
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            margin-top: 10px;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .button-group {
+            display: flex;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .taxas-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .taxa-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+
+        .taxa-item input {
+            flex: 1;
+        }
+
+        .remove-taxa {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .toggle-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+
+        .toggle-section h3 {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #333;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            .taxa-item {
+                flex-direction: column;
+            }
+            
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+      <!-- Header Fixo -->
+    <header class="main-header">
+        <button onclick="voltarAoMenu()" class="back-button">
+            ⬅️ Voltar ao Menu Principal
+        </button>
+
+        <span class="system-name">
+            <span id="nome-sistema">📊 Calculadora de Financiamento</span>
+        </span>
+
+    </header>
+    <!-- Conteúdo Principal 
+    <div class="container">
+        <h1>📊 Calculadora de Financiamento</h1>-->
+        
+        <div style="margin-top: 60px;"></div>
+        <div class="card">
+            <h2>📝 Dados do Financiamento</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="valorFinanciamento">Valor do Financiamento (R$)</label>
+                    <input type="number" id="valorFinanciamento" step="0.01" placeholder="Ex: 100000">
+                </div>
+                
+                <div class="form-group">
+                    <label for="taxaJuros">Taxa de Juros (% ao ano)</label>
+                    <input type="number" id="taxaJuros" step="0.01" placeholder="Ex: 12">
+                </div>
+                
+                <div class="form-group">
+                    <label for="prazo">Prazo (meses)</label>
+                    <input type="number" id="prazo" placeholder="Ex: 360">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sistemaAmortizacao">Sistema de Amortização</label>
+                    <select id="sistemaAmortizacao">
+                        <option value="price">PRICE (Parcelas Fixas)</option>
+                        <option value="sac">SAC (Amortização Constante)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="toggle-section" onclick="toggleSection('taxasSection')">
+                <h3>💰 Taxas e Custos Adicionais <span>▼</span></h3>
+            </div>
+            <div id="taxasSection" class="hidden">
+                <div class="taxas-list" id="listaTaxas">
+                    <!-- Taxas serão adicionadas dinamicamente -->
+                </div>
+                <button class="btn btn-secondary" onclick="adicionarTaxa()">+ Adicionar Taxa</button>
+            </div>
+
+            <div class="toggle-section" onclick="toggleSection('entradaSection')">
+                <h3>💰 Valor de Entrada <span>▼</span></h3>
+            </div>
+            <div id="entradaSection" class="form-grid hidden">
+                <div class="form-group">
+                    <label for="valorEntrada">Valor da Entrada (R$)</label>
+                    <input type="number" id="valorEntrada" step="0.01" placeholder="Ex: 20000">
+                </div>
+            </div>
+
+            <div class="toggle-section" onclick="toggleSection('carenciaSection')">
+                <h3>📅 Período de Carência <span>▼</span></h3>
+            </div>
+            <div id="carenciaSection" class="form-grid hidden">
+                <div class="form-group">
+                    <label for="diasCarencia">Dias de Carência</label>
+                    <input type="number" id="diasCarencia" placeholder="Ex: 30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="amortizacaoCarencia">Amortizar Juros na Carência</label>
+                    <select id="amortizacaoCarencia">
+                        <option value="nao">Não amortizar</option>
+                        <option value="mensal">Mensalmente</option>
+                        <option value="trimestral">Trimestralmente</option>
+                        <option value="final">Ao final da carência</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="toggle-section" onclick="toggleSection('datasSection')">
+                <h3>📆 Datas <span>▼</span></h3>
+            </div>
+            <div id="datasSection" class="form-grid hidden">
+                <div class="form-group">
+                    <label for="dataContratacao">Data de Contratação</label>
+                    <input type="date" id="dataContratacao">
+                </div>
+                
+                <div class="form-group">
+                    <label for="dataPrimeiraParcela">Data da Primeira Parcela</label>
+                    <input type="date" id="dataPrimeiraParcela">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-success" onclick="calcularFinanciamento()">🎯 Calcular Financiamento</button>
+                <button class="btn btn-clear" onclick="limparDados()">🗑️ Limpar Dados</button>
+            </div>
+        </div>
+
+        <div id="resultados" class="card hidden">
+            <h2>📈 Resultados do Financiamento</h2>
+            
+            <div class="summary">
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div>Valor Financiado</div>
+                        <div class="summary-value" id="valorFinanciado">R$ 0,00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Valor da Parcela</div>
+                        <div class="summary-value" id="valorParcela">R$ 0,00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Total de Juros</div>
+                        <div class="summary-value" id="totalJuros">R$ 0,00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Total de Taxas</div>
+                        <div class="summary-value" id="totalTaxas">R$ 0,00</div>
+                    </div>
+                    <div class="summary-item">
+                        <div>Total Pago</div>
+                        <div class="summary-value" id="totalPago">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results">
+                <h3>📋 Tabela de Amortização</h3>
+                <div style="overflow-x: auto;">
+                    <table id="tabelaAmortizacao">
+                        <thead>
+                            <tr>
+                                <th>Parcela</th>
+                                <th>Data</th>
+                                <th>Parcela (R$)</th>
+                                <th>Juros (R$)</th>
+                                <th>Amortização (R$)</th>
+                                <th>Saldo Devedor (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Array para armazenar as taxas
+        let taxas = [];
+
+        // Inicializar datas
+        function inicializarDatas() {
+            document.getElementById('dataContratacao').valueAsDate = new Date();
+            let dataPrimeiraParcela = new Date();
+            dataPrimeiraParcela.setMonth(dataPrimeiraParcela.getMonth() + 1);
+            document.getElementById('dataPrimeiraParcela').valueAsDate = dataPrimeiraParcela;
+        }
+
+        // Inicializar ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            inicializarDatas();
+        });
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('hidden');
+        }
+
+        function adicionarTaxa() {
+            const listaTaxas = document.getElementById('listaTaxas');
+            const taxaId = Date.now();
+            
+            const taxaItem = document.createElement('div');
+            taxaItem.className = 'taxa-item';
+            taxaItem.innerHTML = `
+                <input type="text" id="descricaoTaxa_${taxaId}" placeholder="Descrição da taxa (ex: TAC, Registro, etc.)">
+                <input type="number" id="valorTaxa_${taxaId}" step="0.01" placeholder="Valor (R$)">
+                <button type="button" class="remove-taxa" onclick="removerTaxa(${taxaId})">×</button>
+            `;
+            
+            listaTaxas.appendChild(taxaItem);
+        }
+
+        function removerTaxa(id) {
+            const taxaItem = document.querySelector(`input[id="descricaoTaxa_${id}"]`).parentElement;
+            taxaItem.remove();
+        }
+
+        function obterTaxas() {
+            const taxasItems = document.querySelectorAll('.taxa-item');
+            const taxasArray = [];
+            let totalTaxas = 0;
+
+            taxasItems.forEach(item => {
+                const descricao = item.querySelector('input[type="text"]').value;
+                const valor = parseFloat(item.querySelector('input[type="number"]').value) || 0;
+                
+                if (descricao && valor > 0) {
+                    taxasArray.push({ descricao, valor });
+                    totalTaxas += valor;
+                }
+            });
+
+            return { taxas: taxasArray, total: totalTaxas };
+        }
+
+        function formatarMoeda(valor) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(valor);
+        }
+
+        function formatarData(data) {
+            return new Intl.DateTimeFormat('pt-BR').format(data);
+        }
+
+        function limparDados() {
+            // Limpar campos básicos
+            document.getElementById('valorFinanciamento').value = '';
+            document.getElementById('taxaJuros').value = '';
+            document.getElementById('prazo').value = '';
+            document.getElementById('sistemaAmortizacao').value = 'price';
+            
+            // Limpar entrada
+            document.getElementById('valorEntrada').value = '';
+            
+            // Limpar carência
+            document.getElementById('diasCarencia').value = '';
+            document.getElementById('amortizacaoCarencia').value = 'nao';
+            
+            // Limpar taxas
+            document.getElementById('listaTaxas').innerHTML = '';
+            
+            // Re-inicializar datas
+            inicializarDatas();
+            
+            // Ocultar resultados
+            document.getElementById('resultados').classList.add('hidden');
+            
+            // Fechar todas as seções expandidas
+            const secoes = ['taxasSection', 'entradaSection', 'carenciaSection', 'datasSection'];
+            secoes.forEach(secao => {
+                document.getElementById(secao).classList.add('hidden');
+            });
+            
+            // Mostrar mensagem de confirmação
+            alert('Todos os dados foram limpos! O formulário foi resetado para o estado inicial.');
+        }
+
+        function calcularJurosCompostos(capital, taxa, tempo) {
+            return capital * Math.pow(1 + taxa, tempo) - capital;
+        }
+
+        function calcularFinanciamento() {
+            // Obter valores do formulário
+            const valorFinanciamento = parseFloat(document.getElementById('valorFinanciamento').value) || 0;
+            const taxaJurosAnual = parseFloat(document.getElementById('taxaJuros').value) || 0;
+            const prazo = parseInt(document.getElementById('prazo').value) || 0;
+            const sistema = document.getElementById('sistemaAmortizacao').value;
+            const valorEntrada = parseFloat(document.getElementById('valorEntrada').value) || 0;
+            const diasCarencia = parseInt(document.getElementById('diasCarencia').value) || 0;
+            const amortizacaoCarencia = document.getElementById('amortizacaoCarencia').value;
+            const dataContratacao = new Date(document.getElementById('dataContratacao').value);
+            const dataPrimeiraParcela = new Date(document.getElementById('dataPrimeiraParcela').value);
+
+            // Obter taxas adicionais
+            const { taxas: taxasAdicionais, total: totalTaxas } = obterTaxas();
+
+            // Validar dados básicos
+            if (valorFinanciamento <= 0 || taxaJurosAnual <= 0 || prazo <= 0) {
+                alert('Por favor, preencha os dados básicos do financiamento (valor, taxa de juros e prazo).');
+                return;
+            }
+
+            // Calcular taxa mensal
+            const taxaJurosMensal = Math.pow(1 + taxaJurosAnual / 100, 1/12) - 1;
+
+            // Calcular saldo devedor inicial considerando entrada e taxas
+            let saldoDevedor = valorFinanciamento - valorEntrada + totalTaxas;
+
+            // Array para armazenar as parcelas
+            let parcelas = [];
+
+            // Processar período de carência se houver
+            if (diasCarencia > 0) {
+                const diasPorMes = 30; // Simplificação
+                const mesesCarencia = Math.ceil(diasCarencia / diasPorMes);
+                let jurosAcumulados = 0;
+                
+                for (let i = 1; i <= mesesCarencia; i++) {
+                    const jurosMensal = saldoDevedor * taxaJurosMensal;
+                    jurosAcumulados += jurosMensal;
+                    
+                    const dataAtual = new Date(dataContratacao);
+                    dataAtual.setMonth(dataContratacao.getMonth() + i - 1);
+
+                    // Verificar se é momento de amortizar conforme periodicidade
+                    let amortizarAgora = false;
+                    
+                    if (amortizacaoCarencia === 'mensal') {
+                        amortizarAgora = true;
+                    } else if (amortizacaoCarencia === 'trimestral' && i % 3 === 0) {
+                        amortizarAgora = true;
+                    } else if (amortizacaoCarencia === 'final' && i === mesesCarencia) {
+                        amortizarAgora = true;
+                    }
+
+                    if (amortizarAgora && jurosAcumulados > 0) {
+                        parcelas.push({
+                            parcela: parcelas.length + 1,
+                            data: new Date(dataAtual),
+                            valorParcela: jurosAcumulados,
+                            juros: jurosAcumulados,
+                            amortizacao: 0,
+                            saldoDevedor: saldoDevedor,
+                            tipo: 'Carência'
+                        });
+                        jurosAcumulados = 0;
+                    }
+                }
+
+                // Garantir que juros acumulados sejam pagos ao final se necessário
+                if (jurosAcumulados > 0 && amortizacaoCarencia !== 'nao') {
+                    const dataFinal = new Date(dataContratacao);
+                    dataFinal.setMonth(dataContratacao.getMonth() + mesesCarencia - 1);
+                    
+                    parcelas.push({
+                        parcela: parcelas.length + 1,
+                        data: dataFinal,
+                        valorParcela: jurosAcumulados,
+                        juros: jurosAcumulados,
+                        amortizacao: 0,
+                        saldoDevedor: saldoDevedor,
+                        tipo: 'Carência'
+                    });
+                }
+            }
+
+            // Calcular financiamento conforme sistema escolhido
+            if (sistema === 'price') {
+                // Sistema Price
+                const valorParcela = saldoDevedor * (taxaJurosMensal * Math.pow(1 + taxaJurosMensal, prazo)) / 
+                                   (Math.pow(1 + taxaJurosMensal, prazo) - 1);
+
+                for (let i = 1; i <= prazo; i++) {
+                    const juros = saldoDevedor * taxaJurosMensal;
+                    const amortizacao = valorParcela - juros;
+                    
+                    saldoDevedor -= amortizacao;
+                    if (saldoDevedor < 0.01) saldoDevedor = 0;
+
+                    // Calcular data da parcela
+                    const dataParcela = new Date(dataPrimeiraParcela);
+                    dataParcela.setMonth(dataPrimeiraParcela.getMonth() + i - 1);
+
+                    parcelas.push({
+                        parcela: parcelas.length + 1,
+                        data: dataParcela,
+                        valorParcela: valorParcela,
+                        juros: juros,
+                        amortizacao: amortizacao,
+                        saldoDevedor: saldoDevedor,
+                        tipo: 'Parcela'
+                    });
+                }
+            } else {
+                // Sistema SAC
+                const amortizacaoConstante = saldoDevedor / prazo;
+
+                for (let i = 1; i <= prazo; i++) {
+                    const juros = saldoDevedor * taxaJurosMensal;
+                    const valorParcela = amortizacaoConstante + juros;
+                    
+                    saldoDevedor -= amortizacaoConstante;
+                    if (saldoDevedor < 0.01) saldoDevedor = 0;
+
+                    // Calcular data da parcela
+                    const dataParcela = new Date(dataPrimeiraParcela);
+                    dataParcela.setMonth(dataPrimeiraParcela.getMonth() + i - 1);
+
+                    parcelas.push({
+                        parcela: parcelas.length + 1,
+                        data: dataParcela,
+                        valorParcela: valorParcela,
+                        juros: juros,
+                        amortizacao: amortizacaoConstante,
+                        saldoDevedor: saldoDevedor,
+                        tipo: 'Parcela'
+                    });
+                }
+            }
+
+            // Exibir resultados
+            exibirResultados(parcelas, valorFinanciamento - valorEntrada, totalTaxas, taxasAdicionais);
+        }
+
+        function exibirResultados(parcelas, valorFinanciado, totalTaxas, taxasAdicionais) {
+            const totalJuros = parcelas.reduce((sum, p) => sum + p.juros, 0);
+            const totalPago = parcelas.reduce((sum, p) => sum + p.valorParcela, 0);
+            const primeiraParcela = parcelas.find(p => p.tipo === 'Parcela') || parcelas[0];
+
+            // Atualizar resumo
+            document.getElementById('valorFinanciado').textContent = formatarMoeda(valorFinanciado);
+            document.getElementById('valorParcela').textContent = primeiraParcela ? 
+                formatarMoeda(primeiraParcela.valorParcela) : 'R$ 0,00';
+            document.getElementById('totalJuros').textContent = formatarMoeda(totalJuros);
+            document.getElementById('totalTaxas').textContent = formatarMoeda(totalTaxas);
+            document.getElementById('totalPago').textContent = formatarMoeda(totalPago + totalTaxas);
+
+            // Preencher tabela
+            const tabelaBody = document.getElementById('tabelaBody');
+            tabelaBody.innerHTML = '';
+
+            parcelas.forEach(parcela => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${parcela.parcela} ${parcela.tipo ? `(${parcela.tipo})` : ''}</td>
+                    <td>${formatarData(parcela.data)}</td>
+                    <td>${formatarMoeda(parcela.valorParcela)}</td>
+                    <td>${formatarMoeda(parcela.juros)}</td>
+                    <td>${formatarMoeda(parcela.amortizacao)}</td>
+                    <td>${formatarMoeda(parcela.saldoDevedor)}</td>
+                `;
+                tabelaBody.appendChild(row);
+            });
+
+            // Mostrar resultados
+            document.getElementById('resultados').classList.remove('hidden');
+        }
+    </script>
+    <script>
+        function voltarAoMenu() {
+        // Navegação inteligente que funciona em qualquer ambiente
+        if (window.location.pathname.includes('/sistema-financiamento/')) {
+            window.location.href = '../index.html';
+        } else {
+            window.location.href = './index.html';
+        }
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque - Farmácia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block sidebar">
+                <header class="main-header">
+                    <button onclick="voltarAoMenu()" class="back-button">
+                        ⬅️ Voltar ao Menu Principal
+                    </button>
+                </header>
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4><i class="fas fa-pills me-2"></i>Medicamentos</h4>
+                        <small>Controle de Estoque</small>
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#dashboard">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#produtos">
+                                <i class="fas fa-pills"></i> Produtos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#entrada">
+                                <i class="fas fa-arrow-down"></i> Entrada
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#saida">
+                                <i class="fas fa-arrow-up"></i> Saída
+                            </a>
+                        </li>
+                        <!-- Desativado temporariamente
+                        <li class="nav-item">
+                            <a class="nav-link" href="#alertas">
+                                <i class="fas fa-bell"></i> Alertas
+                            </a>
+                        </li>-->
+                        <li class="nav-item">
+                            <a class="nav-link" href="#categorias">
+                                <i class="fas fa-tags"></i> Categorias
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#relatorios">
+                                <i class="fas fa-chart-bar"></i> Relatórios
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#backup">
+                                <i class="fas fa-database"></i> Backup
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
+                <!-- Dashboard -->
+                <div id="dashboard" class="content-section">
+                    <h2 class="page-title">Dashboard</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card dashboard-card card-primary">
+                                <i class="fas fa-pills text-primary"></i>
+                                <h4>Total de Produtos</h4>
+                                <h2 id="total-produtos">0</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card dashboard-card card-success">
+                                <i class="fas fa-boxes text-success"></i>
+                                <h4>Em Estoque</h4>
+                                <h2 id="total-estoque">0</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card dashboard-card card-warning">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                <h4>Estoque Baixo</h4>
+                                <h2 id="total-baixo">0</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card dashboard-card card-danger">
+                                <i class="fas fa-calendar-times text-danger"></i>
+                                <h4>Próximos do Vencimento</h4>
+                                <h2 id="total-vencendo">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    Movimentações Recentes
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="tabela-movimentacoes">
+                                            <thead>
+                                                <tr>
+                                                    <th>Data</th>
+                                                    <th>Produto</th>
+                                                    <th>Tipo</th>
+                                                    <th>Quantidade</th>
+                                                    <th>Lote</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Dados serão preenchidos via JavaScript -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    Alertas e Notificações
+                                </div>
+                                <div class="card-body" id="alertas-dashboard">
+                                    <!-- Alertas serão preenchidos via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Produtos -->
+                <div id="produtos" class="content-section" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="page-title">Gestão de Produtos</h2>
+                        <button class="btn btn-primary" onclick="abrirModalProduto()">
+                            <i class="fas fa-plus me-2"></i>Novo Produto
+                        </button>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Buscar produto..." id="busca-produto">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="tabela-produtos">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Categoria</th>
+                                            <th>Lote</th>
+                                            <th>Validade</th>
+                                            <th>Estoque</th>
+                                            <th>Status</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dados serão preenchidos via JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Entrada de Produtos -->
+                <div id="entrada" class="content-section" style="display: none;">
+                    <h2 class="page-title">Entrada de Produtos</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-section">
+                                <h5>Registrar Entrada</h5>
+                                <form id="form-entrada">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="produtoEntrada" class="form-label">Produto</label>
+                                            <select class="form-select" id="produtoEntrada" required>
+                                                <option value="">Selecione um produto</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quantidadeEntrada" class="form-label">Quantidade</label>
+                                            <input type="number" class="form-control" id="quantidadeEntrada" min="1" value="1" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="loteEntrada" class="form-label">Número do Lote</label>
+                                            <input type="text" class="form-control" id="loteEntrada" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="validadeEntrada" class="form-label">Data de Validade</label>
+                                            <input type="date" class="form-control" id="validadeEntrada" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="fornecedorEntrada" class="form-label">Fornecedor</label>
+                                        <input type="text" class="form-control" id="fornecedorEntrada">
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-2"></i>Registrar Entrada
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="stats-card primary">
+                                <i class="fas fa-arrow-down fa-2x"></i>
+                                <div class="number" id="entradas-mes">0</div>
+                                <div>Entradas este mês</div>
+                            </div>
+                            
+                            <div class="stats-card success">
+                                <i class="fas fa-boxes fa-2x"></i>
+                                <div class="number" id="itens-adicionados">0</div>
+                                <div>Itens adicionados</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Saída de Produtos -->
+                <div id="saida" class="content-section" style="display: none;">
+                    <h2 class="page-title">Saída de Produtos</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-section">
+                                <h5>Registrar Saída</h5>
+                                <form id="form-saida">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="produtoSaida" class="form-label">Produto</label>
+                                            <select class="form-select" id="produtoSaida" required onchange="atualizarLotesDisponiveis()">
+                                                <option value="">Selecione um produto</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="quantidadeSaida" class="form-label">Quantidade</label>
+                                            <input type="number" class="form-control" id="quantidadeSaida" min="1" value="1" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="loteSaida" class="form-label">Lote de Saída</label>
+                                            <select class="form-select" id="loteSaida" required>
+                                                <option value="">Selecione um lote</option>
+                                                <!-- Lotes serão preenchidos via JavaScript -->
+                                            </select>
+                                            <div class="form-text">Selecione o lote específico do qual o produto será retirado</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="motivoSaida" class="form-label">Motivo da Saída</label>
+                                            <select class="form-select" id="motivoSaida" required>
+                                                <option value="">Selecione o motivo</option>
+                                                <option value="venda">Venda</option>
+                                                <option value="uso_interno">Uso Interno</option>
+                                                <option value="descarte">Descarte</option>
+                                                <option value="outro">Outro</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="observacoesSaida" class="form-label">Observações</label>
+                                        <textarea class="form-control" id="observacoesSaida" rows="3"></textarea>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-cash-register me-2"></i>Registrar Saída
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="stats-card primary">
+                                <i class="fas fa-arrow-up fa-2x"></i>
+                                <div class="number" id="saidas-mes">0</div>
+                                <div>Saídas este mês</div>
+                            </div>
+                            
+                            <div class="stats-card success">
+                                <i class="fas fa-boxes fa-2x"></i>
+                                <div class="number" id="itens-retirados">0</div>
+                                <div>Itens retirados</div>
+                            </div>
+                            
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <i class="fas fa-info-circle me-2"></i>Informações do Lote Selecionado
+                                </div>
+                                <div class="card-body" id="info-lote">
+                                    <p class="text-muted">Selecione um produto e lote para ver detalhes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Alertas -->
+                <div id="alertas" class="content-section" style="display: none;">
+                    <h2 class="page-title">Alertas e Notificações</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-warning text-white">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Produtos com Estoque Baixo
+                                </div>
+                                <div class="card-body" id="alertas-estoque">
+                                    <!-- Alertas de estoque baixo -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    <i class="fas fa-calendar-times me-2"></i>Produtos Próximos do Vencimento
+                                </div>
+                                <div class="card-body" id="alertas-vencimento">
+                                    <!-- Alertas de vencimento -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categorias -->
+                <div id="categorias" class="content-section" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="page-title">Gestão de Categorias</h2>
+                        <button class="btn btn-primary" onclick="abrirModalCategoria()">
+                            <i class="fas fa-plus me-2"></i>Nova Categoria
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-tags me-2"></i>Categorias Cadastradas
+                                </div>
+                                <div class="card-body">
+                                    <div id="lista-categorias" class="categorias-list">
+                                        <!-- Categorias serão preenchidas via JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-pie me-2"></i>Estatísticas por Categoria
+                                </div>
+                                <div class="card-body" id="estatisticas-categorias">
+                                    <!-- Estatísticas serão preenchidas via JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Relatórios -->
+                <div id="relatorios" class="content-section" style="display: none;">
+                    <h2 class="page-title">Relatórios de Movimentações</h2>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-filter me-2"></i>Filtros Avançados
+                                </div>
+                                <div class="card-body">
+                                    <form id="form-filtros-relatorios">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <label for="filtro-tipo" class="form-label">Tipo de Movimentação</label>
+                                                <select class="form-select" id="filtro-tipo">
+                                                    <option value="">Todos</option>
+                                                    <option value="entrada">Entrada</option>
+                                                    <option value="saída">Saída</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="filtro-categoria" class="form-label">Categoria</label>
+                                                <select class="form-select" id="filtro-categoria">
+                                                    <option value="">Todas</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="filtro-produto" class="form-label">Produto</label>
+                                                <select class="form-select" id="filtro-produto">
+                                                    <option value="">Todos</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="filtro-motivo" class="form-label">Motivo da Saída</label>
+                                                <select class="form-select" id="filtro-motivo">
+                                                    <option value="">Todos</option>
+                                                    <option value="venda">Venda</option>
+                                                    <option value="uso_interno">Uso Interno</option>
+                                                    <option value="descarte">Descarte</option>
+                                                    <option value="outro">Outro</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col-md-3">
+                                                <label for="filtro-data-inicio" class="form-label">Data Início</label>
+                                                <input type="date" class="form-control" id="filtro-data-inicio">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="filtro-data-fim" class="form-label">Data Fim</label>
+                                                <input type="date" class="form-control" id="filtro-data-fim">
+                                            </div>
+                                            <div class="col-md-6 d-flex align-items-end">
+                                                <button type="button" class="btn btn-primary me-2" onclick="aplicarFiltros()">
+                                                    <i class="fas fa-search me-2"></i>Aplicar Filtros
+                                                </button>
+                                                <button type="button" class="btn btn-outline-secondary" onclick="limparFiltros()">
+                                                    <i class="fas fa-eraser me-2"></i>Limpar
+                                                </button>
+                                                <div class="btn-group ms-2">
+                                                    <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-file-export me-2"></i>Exportar
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item" href="#" onclick="exportarRelatorioCSV()"><i class="fas fa-file-csv me-2"></i>Exportar CSV</a></li>
+                                                        <li><a class="dropdown-item" href="#" onclick="exportarRelatorioPDF()"><i class="fas fa-file-pdf me-2"></i>Exportar PDF</a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><i class="fas fa-table me-2"></i>Relatório de Movimentações</span>
+                                    <span class="badge bg-primary" id="total-registros">0 registros</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover" id="tabela-relatorios">
+                                            <thead>
+                                                <tr>
+                                                    <th>Data</th>
+                                                    <th>Produto</th>
+                                                    <th>Categoria</th>
+                                                    <th>Tipo</th>
+                                                    <th>Quantidade</th>
+                                                    <th>Lote</th>
+                                                    <th>Motivo</th>
+                                                    <th>Observações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Dados serão preenchidos via JavaScript -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-pie me-2"></i>Resumo por Categoria
+                                </div>
+                                <div class="card-body">
+                                    <div id="resumo-categorias">
+                                        <!-- Resumo será preenchido via JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-chart-bar me-2"></i>Movimentações por Período
+                                </div>
+                                <div class="card-body">
+                                    <div id="resumo-periodo">
+                                        <!-- Resumo será preenchido via JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Backup -->
+                <div id="backup" class="content-section" style="display: none;">
+                    <h2 class="page-title">Backup e Restauração</h2>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="fas fa-download me-2"></i>Exportar Dados
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Exporte todos os dados do sistema para um arquivo de backup.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label for="nomeBackup" class="form-label">Nome do Backup (opcional)</label>
+                                        <input type="text" class="form-control" id="nomeBackup" placeholder="Ex: Backup_Novembro_2024">
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="incluirDados" class="form-label">Dados a Incluir</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="incluirProdutos" checked>
+                                            <label class="form-check-label" for="incluirProdutos">
+                                                Produtos e Estoque
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="incluirMovimentacoes" checked>
+                                            <label class="form-check-label" for="incluirMovimentacoes">
+                                                Histórico de Movimentações
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="incluirCategorias" checked>
+                                            <label class="form-check-label" for="incluirCategorias">
+                                                Categorias
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-success" onclick="exportarBackup()">
+                                            <i class="fas fa-file-export me-2"></i>Exportar Backup
+                                        </button>
+                                        <button class="btn btn-outline-primary" onclick="exportarBackupCSV()">
+                                            <i class="fas fa-file-csv me-2"></i>Exportar como CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-warning text-dark">
+                                    <i class="fas fa-upload me-2"></i>Importar Dados
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-text">Restaure dados a partir de um arquivo de backup.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label for="arquivoBackup" class="form-label">Selecionar Arquivo de Backup</label>
+                                        <input type="file" class="form-control" id="arquivoBackup" accept=".json,.csv">
+                                        <div class="form-text">Suporta arquivos JSON (backup completo) ou CSV</div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="sobrescreverDados">
+                                            <label class="form-check-label" for="sobrescreverDados">
+                                                Sobrescrever dados existentes
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">Se desativado, os dados serão mesclados</small>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-warning" onclick="importarBackup()">
+                                            <i class="fas fa-file-import me-2"></i>Importar Backup
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <i class="fas fa-history me-2"></i>Backups Automáticos
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Configurações de Backup Automático</h6>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="backupAutomatico" onchange="toggleBackupAutomatico()">
+                                                    <label class="form-check-label" for="backupAutomatico">
+                                                        Backup automático
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-3" id="configFrequencia" style="display: none;">
+                                                <label for="frequenciaBackup" class="form-label">Frequência</label>
+                                                <select class="form-select" id="frequenciaBackup">
+                                                    <option value="diario">Diário</option>
+                                                    <option value="semanal">Semanal</option>
+                                                    <option value="mensal">Mensal</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-6">
+                                            <h6>Últimos Backups</h6>
+                                            <div id="lista-backups" class="backups-list">
+                                                <!-- Lista de backups será preenchida via JavaScript -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="card border-danger">
+                                <div class="card-header bg-danger text-white">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Área de Risco
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">Limpar Todos os Dados</h6>
+                                    <p class="card-text">Esta ação irá remover todos os produtos, movimentações e categorias do sistema. Esta ação não pode ser desfeita.</p>
+                                    <button class="btn btn-danger" onclick="confirmarLimpezaDados()">
+                                        <i class="fas fa-trash me-2"></i>Limpar Todos os Dados
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Botão de alternância de tema -->
+    <button class="theme-toggle" id="themeToggle">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <!-- Modal para Novo Produto -->
+    <div class="modal fade" id="modalProduto" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cadastrar Novo Produto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-produto">
+                        <div class="mb-3">
+                            <label for="nomeProduto" class="form-label">Nome do Produto</label>
+                            <input type="text" class="form-control" id="nomeProduto" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="categoriaProduto" class="form-label">Categoria</label>
+                            <div class="input-group">
+                                <select class="form-select" id="categoriaProduto" required>
+                                    <option value="">Selecione uma categoria</option>
+                                    <!-- Categorias serão preenchidas via JavaScript -->
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" onclick="abrirModalCategoria()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="estoqueMinimo" class="form-label">Estoque Mínimo</label>
+                            <input type="number" class="form-control" id="estoqueMinimo" min="1" value="10" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="salvarProduto()">Salvar Produto</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Nova Categoria -->
+    <div class="modal fade" id="modalCategoria" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cadastrar Nova Categoria</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-categoria">
+                        <div class="mb-3">
+                            <label for="nomeCategoria" class="form-label">Nome da Categoria</label>
+                            <input type="text" class="form-control" id="nomeCategoria" required placeholder="Ex: Antibióticos, Analgésicos...">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="descricaoCategoria" class="form-label">Descrição (Opcional)</label>
+                            <textarea class="form-control" id="descricaoCategoria" rows="3" placeholder="Descreva a categoria..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="salvarCategoria()">Salvar Categoria</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast para notificações -->
+    <div class="toast" id="toast" role="alert">
+        <div class="toast-header">
+            <strong class="me-auto" id="toast-title">Notificação</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toast-message">
+            Mensagem de notificação
+        </div>
+    </div>
+
+    <!-- Bibliotecas para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
